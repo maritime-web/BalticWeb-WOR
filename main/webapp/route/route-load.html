@@ -1,0 +1,257 @@
+<div ng-controller="RouteLoadCtrl">
+    <div class="container">
+        <div class="row">
+            <div class="col-xs-9">
+                <h3 ng-bind="rtzName"></h3>
+                <h3 ng-if="route_vesselname && rtzName "> for {{route_vesselname}} </h3>
+                <!--<h1 ng-if="!rtzName">Upload route</h1>-->
+            </div>
+            <div class="col-xs-3" style="padding: 20px 26px " >
+                     <span ng-if="oLfeatures.length > 0" >
+                         <button type="button" ng-if="!loading" ng-click="storeAllFeaturesSomewhere()" class="btn  btn-lg  btn-success ">
+                            <span class="glyphicon glyphicon-check"></span> Use route
+                        </button>
+                     </span>
+                <span ng-if="oLfeatures.length > 0">
+                        <button type="button" ng-if="loading" ng-click="storeAllFeaturesSomewhere()" class="btn btn-lg btn-primary ">
+                          <i class="fa fa-cog fa-spin fa-lg fa-fw"></i> Loading...
+                        </button>
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <!--<div class="row">-->
+
+
+            <!--<div class="col-xs-9">-->
+                <!--<h3>{{rtzName}} </h3>-->
+            <!--</div>-->
+            <!--<div class="col-xs-3">-->
+                     <!--<span  ng-if="oLfeatures.length > 0">-->
+                <!--<label ng-if="!loading" ng-click="storeAllFeaturesSomewhere()" class="btn  btn-success ">-->
+                            <!--<span class="glyphicon glyphicon-check"></span> Use route-->
+                        <!--</label>-->
+                    <!--</span>-->
+                <!--<span  ng-if="oLfeatures.length > 0">-->
+                <!--<label ng-if="loading" ng-click="storeAllFeaturesSomewhere()" class="btn btn-primary ">-->
+                          <!--<i class="fa fa-cog fa-spin fa-lg fa-fw"></i> Loading...-->
+                        <!--</label>-->
+                    <!--</span>-->
+                <!--</span>-->
+            <!--</div>-->
+
+
+        <!--</div>-->
+            <div ng-if="oLfeatures.length > 0">
+                <div id="rtz-map" class="well">
+
+                    <ol-map class="route-details-map"  minzoom="1" swlon="0" swlat="0" nelon="90" nelat="90">
+                        <map-tile-layer name="OSM" visible="true" source="OSM"></map-tile-layer>
+                        <routertz points="oLpoints" features="oLfeatures" animatedfeatures="oLanimatedfeatures" autoplay="true"></routertz>
+                        <map-scale-line units="nautical"></map-scale-line>
+                        <map-mouse-position></map-mouse-position>
+                        <!--<map-layer-switcher></map-layer-switcher>-->
+                        <!--map-overview collapsed="true"></map-overview-->
+                    </ol-map>
+
+                    <h4>Waypoints: <span class="badge badge-info">{{oLfeatures.length}}</span>  Active Waypoint: <span class="badge badge-info">#{{$root.activeWayPoint}}</span>
+                        Distance: <span class="badge badge-info">{{totaldistance | number:2 }}</span>Nautical miles </h4>
+                </div>
+            </div>
+    </div>
+    <div class="container">
+
+            <div class="row " ng-show="showCharts">
+                <div class="col-md-12">
+                    <div class="well">
+                        <div><i class="fa fa-tachometer" aria-hidden="true"></i> <b>SOG</b>
+                            <small>Speed</small>
+                        </div>
+                        <canvas id="rtzchart"
+                                class="chart chart-bar"
+                                chart-data="sogChartdata"
+                                chart-labels="sogChartlabels"
+                                chart-series="sogChartseries"
+                                chart-options="sogChartoptions"
+                                chart-dataset-override="sogChartdatasetOverride"
+                                chart-colours="colours"
+                                chart-click="onClick">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row " ng-if="oLfeatures">
+                <div class="col-md-12">
+                    <div class="well">
+                        <h3><i class="fa fa-table" aria-hidden="true"></i> Table of waypoints</h3>
+                        <table class="table table-striped table-hover">
+                            <tr>
+                                <td>
+                                    <uib-accordion close-others="oneAtATime">
+                                        <uib-accordion-group heading="{{rtzName}}" is-open="true"
+                                                             is-disabled="false">
+                                            <table class="table table-striped table-hover table-bordered table-condensed">
+                                                <thead>
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Name</th>
+                                                    <th>Time</th>
+                                                    <th>ETA</th>
+                                                    <th><span class="glyphicon glyphicon-flag"></span> Position</th>
+                                                    <th>Radius (nm)</th>
+                                                    <th>Speed (knot)</th>
+                                                    <th>Min. speed (knot)</th>
+                                                    <th>Max. speed (knot)</th>
+                                                    <th>Geometry</th>
+                                                    <th>Starboard xtd (nm)</th>
+                                                    <th>Portside xtd (nm)</th>
+                                                    <th>Distance (nm)</th>
+                                                    <th>Direction</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody>
+                                                <tr ng-repeat="object in oLfeatures | limitTo: 300"
+                                                    ng-class="{ 'active'   : $root.activeWayPoint == object.get('id')}"
+                                                    ng-click="setSelected(object.get('id'))">
+                                                    <td ng-bind="object.get('id')"></td>
+                                                    <td ng-bind="object.get('wayname')"> </td>
+                                                    <td><small>{{object.get('etatimeago')}}</small></td>
+                                                    <td><small>{{object.get('eta')}}</small></td>
+                                                    <td><small>{{ toLonLat(object.get('lon'), object.get('lat')) | lonlat:{ decimals : 3, pp: true} }}</small></td>
+                                                    <td class="text-right">{{object.get('radius') | number:2}}</td>
+                                                    <td class="text-right">{{object.get('speed')}}</td>
+                                                    <td class="text-right">{{object.get('speedmin')}}</td>
+                                                    <td class="text-right">{{object.get('speedmax')}}</td>
+                                                    <td>{{object.get('geometrytype')}}</td>
+                                                    <td class="text-right">{{object.get('starboardxtd') | number:4 }}</td>
+                                                    <td class="text-right">{{object.get('portsidextd') | number:4 }}</td>
+                                                    <td class="text-right">{{object.get('distance')| number:2}}</td>
+                                                    <td class="text-right">{{object.get('direction')| number:2}}°</td>
+
+                                                </tr>
+                                                </tbody>
+                                            </table>
+                                        </uib-accordion-group>
+                                    </uib-accordion>
+                                </td>
+                                <td></td>
+
+
+                            </tr>
+                        </table>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <div class="container">
+
+
+        <div class="col-lg-12">
+            <div class="col-lg-6">
+                <div class="well">
+                    <h3>Load RTZ Route</h3>
+                    <h3><small>upload your own Route plan exchange format file</small></h3>
+                    <p>
+                    <form>
+                        <!--<input type="file" ng-file-select="onFileSelect($files)" >-->
+                        <!--  <input type="file" ng-file-select="onFileSelect($files)" multiple> -->
+
+                        <label class="btn btn-success btn-lg btn-file">
+                            <span class="glyphicon glyphicon-file"></span>
+                            <span class="glyphicon glyphicon-upload"></span>
+                            Browse file system <input type="file" ng-file-select="onFileSelect($files)" style="display: none;">
+                        </label>
+
+
+
+                    </form>
+                    </p>
+
+                    <p>
+                        <b>Progress:</b>
+                        <progress value="{{progress}}"></progress>
+                    </p>
+                </div>
+            </div>
+            <div class="col-lg-4 col-lg-offset-2">
+                <div class="well">
+                <h3>
+                    Sample RTZ Routes<br>
+                    <small>try out these example routes</small>
+                </h3>
+                <form name="myForm">
+                    <label for="repeatSelect"> Route: </label>
+                    <select class="form-control" name="repeatSelect" id="repeatSelect" ng-model="sampleFile">
+                        <option ng-repeat="option in sampleRTZdata" value="{{option.id}}">{{option.name}}</option>
+                    </select>
+                </form>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="col-lg-6 col-lg-offset-3">
+            <div class="alert alert-warning alert-dismissible " role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <strong>Demo page!</strong> Please note that this is not an operational page. Here you can upload an RTZ route file. Nothing more. The route is not stored or exchanged.<br>
+                Be aware that the route-demo page is a work-in-progress, only a subset of the <a href="http://www.cirm.org/rtz/RTZ%20Schema%20version%201_0.txt">RTZ specification</a> is supported atm. Feedback, comments and error reporting are most welcome
+            </div>
+        </div>
+    </div>
+        <hr>
+        <div class="container">
+            <button type="button" class="btn btn-sm pull-right" style="opacity: 0.5" ng-click="toggleDebug()">Debug info <i class="fa fa-cog"></i></button>
+            <div class="well" ng-if="!debugCollapsed">
+                <h2>Debug information</h2>
+
+                <div>OpenLayers features JSON:<br>
+                    <button type="button" class="btn btn-default" ng-click="jsonFeatCollapsed = !jsonFeatCollapsed">Toggle
+                        JSON
+                        features
+                    </button>
+                    <hr>
+                    <div uib-collapse="jsonFeatCollapsed">
+                        <div class="well well-lg">
+                            <div>
+                                <json-formatter class="json-formatter-dark" open="1" json="oLfeatures"></json-formatter>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div>JSON (from XML):<br>
+                    <button type="button" class="btn btn-default" ng-click="jsonCollapsed = !jsonCollapsed">Toggle JSON
+                        input
+                    </button>
+                    <hr>
+                    <div uib-collapse="jsonCollapsed">
+                        <div class="well well-lg">
+                            <div>
+                                <json-formatter class="json-formatter-dark" open="1" json="rtzJSON"></json-formatter>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <button type="button" class="btn btn-defaul" ng-click="xmlCollapsed = !xmlCollapsed">Toggle XML input
+                    </button>
+                    <hr>
+                    <div uib-collapse="xmlCollapsed">
+                        <div class="well well-lg">
+                            <div>XML:
+                                <pre class="xml-formatter-dark">{{rtzXML}}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>

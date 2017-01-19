@@ -1,0 +1,237 @@
+
+<div uib-collapse="!$root.showgraphSidebar"  class="maritimeweb-sidebar col-xs-9 col-sm-4  col-md-4 sidebar"> <!-- uib-collapse="showgraphSidebar" -->
+    <uib-tabset type="pills" justified="true">
+
+        <uib-tab classes="btn-sm">
+            <uib-tab-heading ng-class="(SatelliteServicesStatus=='true') ? 'panel-primary' : 'panel-default'">
+                <span class="glyphicon glyphicon-globe"></span> Satellite
+                <span class="badge sidebar-badge" ng-bind="mapWeatherLayers.getLayers().getArray().length"></span>
+
+            </uib-tab-heading>
+            <div ng-if="!loggedIn" class="sidebar-panel">
+                <div class="well">
+                    <p>Log in to access satellite services</p>
+                    <button class="btn btn-default" ng-click="login()">Login</button>
+                </div>
+            </div>
+
+
+            <div class="panel" ng-if="loggedIn" ng-class="(SatelliteServicesStatus=='true') ? 'panel-primary' : 'panel-default'">
+
+                <div class="panel-heading"><span class="glyphicon glyphicon-globe"></span> Nasa Satellite images
+                </div>
+                <div class="panel-body">
+                    <p>Browse satellite imagery from the last days</p>
+                </div>
+
+                <!-- Table -->
+                <table class="table" ng-if="SatelliteServicesStatus=='true'"
+                       ng-repeat="aService in mapWeatherLayers.getLayers().getArray()">
+
+                    <tr ng-class="{'active':aService.getVisible()}">
+                        <td><a href ng-bind="aService.get('title')"
+                               ng-click="switchService(mapWeatherLayers.getLayers().getArray(), aService)"></a>
+                            <span
+                                    class="label label-success" ng-bind="aService.get('description')"></span>
+                          </td>
+                    </tr>
+
+                </table>
+                <div class="panel-footer">
+                    <p class="small">Disclamer: We acknowledge the use of data products or imagery from the Land,
+                        Atmosphere Near real-time
+                        Capability for EOS (LANCE) system operated by the NASA/GSFC/Earth Science Data and
+                        Information
+                        System (ESDIS) with funding provided by NASA/HQ.</p>
+                </div>
+
+            </div>
+
+        </uib-tab>
+
+        <!-- Vessels tab -->
+        <uib-tab classes="btn-sm">
+            <uib-tab-heading classes="btn-sm" >
+                <img src="/img/vessel_gray.png"/>
+                &nbsp;Vessels
+                <span class="badge sidebar-badge" ng-bind="vessels.length"></span>
+            </uib-tab-heading>
+            <div class="sidebar-panel">
+
+                <div ng-if="!loggedIn" class="well">
+                    <p>Log in to access vessel data</p>
+                    <button class="btn btn-default" ng-click="login()">Login</button>
+                </div>
+
+                <div class="panel panel-default" ng-if="loggedIn" >
+
+                    <div class="panel-heading"><span class="glyphicon glyphicon-globe"></span> AIS information
+                    </div>
+                    <div class="panel-body">
+                        <p><i class="fa fa-ship" aria-hidden="true"></i> Position information from AIS providers</p>
+                    </div>
+
+                    <!-- Table -->
+                    <table class="table"
+                           ng-repeat="aService in mapTrafficLayers.getLayers().getArray()">
+
+                        <tr ng-class="{'active':aService.getVisible()}">
+                            <td><a href ng-bind="aService.get('title')"
+                                   ng-click="toggleLayer(aService)"></a>
+                                <!--<span class="label label-success" ng-bind="aService.get('title')"></span>-->
+                            </td>
+                        </tr>
+
+                    </table>
+             <!--       <div class="panel-footer">
+                        <p class="small"></p>
+                    </div>
+-->
+                </div>
+
+<!--                <div ng-if="loggedIn" class="well">
+                    <span><i class="fa fa-ship" aria-hidden="true"></i> Vessel position information from AIS</span>
+                    <div>
+                        <span ng-repeat="aService in mapTrafficLayers.getLayers().getArray()" ng-class="{'active':aService.getVisible()}">
+                            <input type="checkbox" ng-model="aService.getVisible()" ng-readonly="true" ng-click="toggleLayer(aService)"  >
+                            <a href="#" ng-bind="aService.get('title')" ng-click="toggleLayer(aService)"> <span class="badge badge-success " ng-bind="vessels.length"></span></a></span>
+                    </div>
+                </div>-->
+
+                <table ng-if="mapTrafficLayers.getLayers().getArray()[0].getVisible()" class="table table-striped">
+                    <tr ng-repeat="vessel in vessels | orderBy: 'mmsi' | limitTo: 100">
+                        <td width="24" class="vessel-item">
+                            <img ng-src="{{iconForVessel(vessel)}}">
+                        </td>
+                        <td class="vessel-item"><span ng-if="vessel.mmsi">{{vessel.mmsi}}</span></td>
+                        <td class="vessel-item"><a ng-href="#/vessel/{{vessel.mmsi}}">{{vessel.name}}</a></td>
+                        <td class="vessel-item">{{toLonLat(vessel) | lonlat:{ decimals : 3, pp: true } }}</td>
+                    </tr>
+                </table>
+            </div>
+        </uib-tab>
+
+
+        <!-- NW-NM tab -->
+        <uib-tab classes="btn-sm">
+            <uib-tab-heading>
+                <img src="/img/nwnm/nw.png" height="16"/>
+                NW-NM
+                <span class="badge sidebar-badge" ng-bind="nwNmMessages.length"></span>
+            </uib-tab-heading>
+
+            <div class="panel" ng-class="(nwNmServicesStatus=='true') ? 'panel-primary' : 'panel-default'">
+                <div class="panel-heading">MC NW-NM Services
+                    <small tooltip="Refresh" class="glyphicon glyphicon-refresh"
+                           ng-click="refreshNwNmServices()"></small>
+
+                    <div class="small pull-right">
+                        Display &nbsp;&nbsp;
+                        <input type="checkbox" ng-model="nwNmType.NW" ng-change="nwNmTypeChanged()">&nbsp;NW
+                        &nbsp;&nbsp;
+                        <input type="checkbox" ng-model="nwNmType.NM" ng-change="nwNmTypeChanged()">&nbsp;NtM
+                    </div>
+                </div>
+
+                <div class="panel-body">
+                    <div class="message-service" ng-repeat="s in nwNmServices">
+                        <input type="checkbox" ng-model="s.selected" ng-change="nwNmSelected(s)">&nbsp;{{s.name}}
+                    </div>
+                    <table class="table table-striped">
+                        <tr ng-repeat-start="msg in nwNmMessages"
+                            ng-if="$index == 0 || nwnmAreaHeading($index) != nwnmAreaHeading($index - 1)">
+                            <td colspan="2" class="message-area-heading">
+                                {{nwnmAreaHeading($index)}}
+                            </td>
+                        </tr>
+                        <tr ng-repeat-end>
+                            <td width="20" align="left" class="message-item">
+                                <img ng-if="msg.mainType == 'NM'" src="/img/nwnm/nm.png" height="20"/>
+                                <img ng-if="msg.mainType == 'NW'" src="/img/nwnm/nw.png" height="20"/>
+                            </td>
+                            <td width="*" class="message-item">
+                                <span ng-if="msg.shortId" class="badge label-message-id">{{msg.shortId}}</span>
+                                <a href ng-click="showNwNmDetails(msg)">{{msg.descs[0].title}}</a>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+        </uib-tab>
+
+        <!-- Route tab -->
+        <uib-tab ng-if="$root.route_id" classes="btn-sm">
+            <uib-tab-heading>
+                <span>Route <span class="badge sidebar-badge">1</span></span>
+            </uib-tab-heading>
+
+            <div class="panel" ng-show="$root.route_id" class="panel-primary">
+                <!-- div class="panel-heading"><h3>Route: {{$root.route_name}}</h3></div-->
+
+                <div class="panel-body">
+
+                    <!-- Table -->
+                    <table class="table table-striped table-hover table-bordered ">
+                        <tr>
+                            <td>Route name: {{$root.route_name}}</a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Vessel name: <a ng-href="#/vessel/{{$root.route_id}}">{{$root.route_vesselname}}</a>
+                            </td>
+                        </tr>
+                        <tr>
+
+                            <td>Vessel MMSI: <a ng-href="#/vessel/{{$root.route_id}}">{{$root.route_id}}</a>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Distance: {{$root.route_totaldistance | number:2}} nautical miles
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Waypoints: {{$root.route_oLfeatures.length}}
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table class="table table-striped table-hover table-bordered table-condensed">
+                            <thead>
+                            <tr>
+                                                    <th>#</th>
+                                                    <th>Name</th>
+                                                    <th>Time</th>
+                                                    <th>ETA</th>
+
+                                                </tr>
+                            </thead>
+                                                <tbody>
+                                                <tr ng-repeat="object in $root.route_oLfeatures | limitTo: 300">
+                                                    <td ng-bind="object.get('id')"></td>
+                                                    <td ng-bind="object.get('wayname')"> </td>
+                                                    <td><small>{{object.get('etatimeago')}}</small></td>
+                                                    <td><small>{{object.get('eta')}}</small></td>
+                                                    <!--<td class="text-right">{{object.get('speed')}}</td>-->
+                                                    <!--<td class="text-right">{{object.get('distance')| number:2}}</td>-->
+                                                </tr>
+                                                </tbody>
+
+                    </table>
+                    <div class="panel-footer">
+                        <p class="small">Uploaded route</p>
+                    </div>
+
+
+
+                </div>
+            </div>
+
+        </uib-tab>
+
+
+
+
+    </uib-tabset>

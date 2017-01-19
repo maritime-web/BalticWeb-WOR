@@ -1,0 +1,8 @@
+
+{
+  "realm" : "MaritimeCloud",
+  "auth-server-url" : "https://maritimeid.maritimecloud.net/auth",
+  "ssl-required" : "none",
+  "resource" : "urn:mrn:mcl:service:instance:dma:balticweb-frontend",
+  "public-client" : true
+}
