@@ -1,165 +1,230 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Icon Pixel Operations</title>
-    <link rel="stylesheet" href="https://openlayers.org/en/v3.20.1/css/ol.css" type="text/css">
-    <!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
-    <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
-    <script src="https://openlayers.org/en/v3.20.1/build/ol.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script> <!-- still used in the menu dropdowns -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+	<title>Icon Pixel Operations</title>
+	<link rel="stylesheet" href="https://openlayers.org/en/v3.20.1/css/ol.css" type="text/css">
+	<!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
+	<script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+	<script src="https://openlayers.org/en/v3.20.1/build/ol.js"></script>
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script> <!-- still used in the menu dropdowns -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
 
 </head>
 <body>
 
-    <style type="text/css">
-        html, body, #basicMap {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-        }
-    </style>
-    
-
-    <div id="map" class="map"><div id="popup"></div></div>
-    <script>
+	<style type="text/css">
+		html, body, #basicMap {
+			width: 100%;
+			height: 100%;
+			margin: 0;
+		}
+	</style>
 
 
-        
-
-        var route = {
-            waypoints: [
-                { id: 1, name: "pos1", legspeedmin: 12, legspeedmax: 13, long: 13.711061468866212, lat: 55.07291720021519, winddirection: 120, windspeed: 24, currentdirection: 155, currentspeed: 3.2 },
-                { id: 2, name: "pos2", legspeedmin: 11, legspeedmax: 12, long: 12.663240423944345, lat: 54.880610640482985, winddirection: 120, windspeed: 28, currentdirection: 140, currentspeed: 3.1 },
-                { id: 3, name: "pos3", legspeedmin: 11, legspeedmax: 12, long: 12.005518697218807, lat: 54.53590450023398, winddirection: 120, windspeed: 30, currentdirection: 136, currentspeed: 3.4 },
-                { id: 4, name: "pos4", legspeedmin: 10, legspeedmax: 11, long: 11.93099777456585, lat: 54.569907839824936, winddirection: 120, windspeed: 30, currentdirection: 130, currentspeed: 3.8 }
-            ]
-        }
-
-        //var str = [[38.313072, -89.863845] ,[38.312675, -89.863586] ......
-        //var trnsStr = new ol.geom.LineString(str);
-        //trnsStr.transform('EPSG:4326', 'EPSG:3857');
-        //vectorRoute = new ol.layer.Vector({
-        //    source: new ol.source.Vector({
-        //        features: new ol.Feature({
-        //            geometry: trnsStr,
-        //            name: 'Line'
-        //        })
-        //    })
-        //});
-
-        var createRoute = function () { //assumes no error in route object
-            function createcoords() {
-                var ret = [];
-                for (var i = 0; i != route.waypoints.length; i++) {
-                    var tarr = [];
-                    tarr.push(route.waypoints[i].long);
-                    tarr.push(route.waypoints[i].lat);
-                    ret.push(tarr);
-                }
-                console.log(ret);
-                return ret
-            }
-
-            var coords = createcoords();
-            var lineString = new ol.geom.LineString(coords);
-            lineString.transform('EPSG:4326', 'EPSG:3857'); //transform to EPSG:3857
-
-            // create the feature
-            var feature = new ol.Feature({
-                geometry: lineString,
-                name: 'Line'
-            });
-
-            var lineStyle = new ol.style.Style({
-                stroke: new ol.style.Stroke({
-                    color: 'rgba(255,0,0,0.5)',
-                    width: 5
-                })
-            });
-
-
-            var source = new ol.source.Vector({
-                features: [feature]
-            });
-
-            var vectorLayer = new ol.layer.Vector({
-                source: source,
-                style: [lineStyle]
-            });
-
-            return vectorLayer;
-        }
+	<div id="map" class="map"><div id="popup"></div></div>
+	<script>
 
 
 
+		//Notes:
+		//windspeed is metres/second
+		//Temperatures are always Celcius
+		//Current speeds are always Knots
+		//Legspeeds are in knots
+		var route = {
+			waypoints: [
+			{ id: 1, name: "pos1", legspeedmin: 12, legspeedmax: 13, lon: 13.711061468866212, lat: 55.07291720021519, winddirection: 120, windspeed: 24, airtemperature: 9, currentdirection: 155, currentspeed: 3.2 },
+			{ id: 2, name: "pos2", legspeedmin: 11, legspeedmax: 12, lon: 12.663240423944345, lat: 54.880610640482985, winddirection: 120, windspeed: 28, airtemperature: 9, currentdirection: 140, currentspeed: 3.1 },
+			{ id: 3, name: "pos3", legspeedmin: 11, legspeedmax: 12, lon: 12.005518697218807, lat: 54.53590450023398, winddirection: 120, windspeed: 30, airtemperature: 9, currentdirection: 136, currentspeed: 3.4 },
+			{ id: 4, name: "pos4", legspeedmin: 10, legspeedmax: 11, lon: 11.93099777456585, lat: 54.569907839824936, winddirection: 120, windspeed: 30, airtemperature: 9, currentdirection: 130, currentspeed: 3.8 }
+			]
+		}
 
 
-        //**************************************************************
-        //**************************************************************
+		var createRoute = function () { //assumes no error in route object
+			function createcoords() {
+				var ret = [];
+				for (var i = 0; i != route.waypoints.length; i++) {
+					var tmparr = [];
+					tmparr.push(route.waypoints[i].lon);
+					tmparr.push(route.waypoints[i].lat);
+					ret.push(tmparr);
+				}
+				return ret
+			}
+			var coords = createcoords();
+			var lineString = new ol.geom.LineString(coords);
+			lineString.transform('EPSG:4326', 'EPSG:3857'); //transform to EPSG:3857
 
-        var map = new ol.Map({
-            loadTilesWhileInteracting: true,
-            target: 'map',
-            layers: [
-                new ol.layer.Tile({
-                    source: new ol.source.OSM()
-                }), createRoute()
-            ],
-            view: new ol.View({
-                center: ol.proj.transform([12.68383978917871, 54.83159902246746], 'EPSG:4326', 'EPSG:3857'),
-                zoom: 9
-            })
-        });
-
-
-        //**************************************************************
-        //**************************************************************
-
-
-
-
-
-
-        //**************************************************************
-        // USER INTERACTION - MOUSE & TOUCH
-
-        map.on('pointermove', function (evt) {
-            map.getTargetElement().style.cursor =
-                map.hasFeatureAtPixel(evt.pixel) ? 'pointer' : '';
-        });
-
-        map.on('click', function (evt) {
-            var lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
-            var lon = lonlat[0];
-            var lat = lonlat[1];
-
-            console.info(evt.pixel);
-            console.info("lon:"+lon +" - " + "lat:"+lat);
-
-            var feature = map.forEachFeatureAtPixel(evt.pixel,
-                function (feature) {
-                    return feature;
-                });
-            if (feature) {
-                var coordinates = feature.getGeometry().getCoordinates();
-                console.log("Clicked on: " + feature.get('name'));
-            } else {
-                console.log("Clicked on nothing.");
-            }
-        });
-
-        //ZOOM DETECT
-        map.on("moveend", function (e) {
-            console.log("Zoom level:"+map.getView().getZoom());
-        });
+			var feature = new ol.Feature({ // create the feature
+				geometry: lineString,
+				name: 'RouteLine',
+			});
+			var lineStyle = new ol.style.Style({
+				stroke: new ol.style.Stroke({
+					color: 'rgba(255,0,0,0.5)',
+					width: 5
+				})
+			});
+			var source = new ol.source.Vector({
+				features: [feature]
+			});
+			var vectorLayer = new ol.layer.Vector({
+				source: source,
+				style: [lineStyle],
+				name: 'routelines'
+			});
+			return vectorLayer;
+		}
 
 
 
-        // END USER INTERACTION - MOUSE & TOUCH
-        //**************************************************************
+		//Make start and end points have circles
+		var createRouteDots = function () {
+			var feature1 = new ol.Feature({ // create the feature
+				geometry: new ol.geom.Circle([route.waypoints[0].lon, route.waypoints[0].lat]).transform('EPSG:4326', 'EPSG:3857'),
+				name: 'RouteStartDot',
+				lon: route.waypoints[0].lon,
+				lat: route.waypoints[0].lat
+			});
+			var feature2 = new ol.Feature({ // create the feature
+				geometry: new ol.geom.Circle([route.waypoints[route.waypoints.length - 1].lon, route.waypoints[route.waypoints.length - 1].lat]).transform('EPSG:4326', 'EPSG:3857'),
+				name: 'RouteEndDot',
+				lon: route.waypoints[route.waypoints.length - 1].lon,
+				lat: route.waypoints[route.waypoints.length - 1].lat
+			});
 
-    </script>
+			var circleStyle = new ol.style.Style({
+				stroke: new ol.style.Stroke({
+					color: 'rgba(200,0,0,1)',
+					width: 20
+				}),
+				fill: new ol.style.Fill({
+					color: 'rgba(255, 0, 255, 0.1)'
+				})
+			});
+
+			var source = new ol.source.Vector({
+				features: [feature1, feature2]
+			});
+
+			var vectorLayer = new ol.layer.Vector({
+				source: source,
+				style: [circleStyle],
+				name: 'routedots'
+			});
+
+			return vectorLayer;
+		}
+
+
+
+
+		// MAP INIT
+		//**************************************************************
+		//**************************************************************
+		var map = new ol.Map({
+			loadTilesWhileInteracting: true,
+			target: 'map',
+			layers: [
+			new ol.layer.Tile({
+				source: new ol.source.OSM()
+			}), createRoute(), createRouteDots()
+			],
+			view: new ol.View({
+				center: ol.proj.transform([12.68383978917871, 54.83159902246746], 'EPSG:4326', 'EPSG:3857'),
+				zoom: 9
+			})
+		});
+
+		//**************************************************************
+		//**************************************************************
+		//MAP INIT END
+
+
+
+
+
+
+
+
+		//**************************************************************
+		// USER INTERACTION - MOUSE & TOUCH
+
+		map.on('pointermove', function (evt) {
+			var feature = map.forEachFeatureAtPixel(evt.pixel,
+			function (feature) {
+				return feature;
+			});
+
+
+			var indexOfFeatures = "RouteStartDot, RouteEndDot"
+			if (feature) {
+				if (indexOfFeatures.indexOf(feature.get('name')) > -1) {
+					map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel) ? 'pointer' : '';
+				}
+			} else {
+				map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel) ? 'pointer' : '';
+			}
+
+		});
+
+
+
+
+		map.on('click', function (evt) {
+			var lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+			var lon = lonlat[0];
+			var lat = lonlat[1];
+
+			console.log("Mouse lon:" + lon + " - " + "lat:" + lat);
+
+			var feature = map.forEachFeatureAtPixel(evt.pixel,
+			function (feature) {
+				return feature;
+			});
+			if (feature) {
+				console.log("Clicked on: " + feature.get('name') + " - Coords:" + feature.get('lon') + "," + feature.get('lat'));
+			} else {
+				console.log("Clicked on nothing.");
+			}
+		});
+
+		//ZOOM DETECT - rescale items as needed
+		map.on("moveend", function (e) {
+			var zoomlvl = parseInt(map.getView().getZoom());
+			console.log("Zoom level:" + zoomlvl);
+
+			//loop through all layers to rescale route items so they dont fill the entire area
+			map.getLayers().forEach(function (layer, i) {
+				if (layer instanceof ol.layer.Vector) {
+					var prop = layer.getProperties();
+					var src = layer.getSource();
+					src.forEachFeature(function(feature) { //loop through each feature
+						var name = feature.get("name");
+						var styleRouteStartEnd = new ol.style.Style({
+							stroke: new ol.style.Stroke({
+								color: 'rgba(200,0,0,1)',
+								width: zoomlvl*2
+							}),
+							fill: new ol.style.Fill({
+								color: 'rgba(255, 0, 255, 0.1)'
+							})
+						});
+						//Manipulte features as needed
+						if (name == "RouteStartDot") feature.setStyle(styleRouteStartEnd);
+						if (name == "RouteEndDot") feature.setStyle(styleRouteStartEnd);
+					})
+				}
+			});
+		});
+
+
+
+		// END USER INTERACTION - MOUSE & TOUCH
+		//**************************************************************
+
+	</script>
 </body>
 </html>
