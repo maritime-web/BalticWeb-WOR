@@ -6,9 +6,11 @@
 	<!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
 	<script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
 	<script src="https://openlayers.org/en/v3.20.1/build/ol.js"></script>
-	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script> <!-- still used in the menu dropdowns -->
-	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script> <!-- still used in the menu dropdowns -->
+
+
 	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
 
 </head>
 <body>
@@ -27,20 +29,29 @@
 
 
 
+
 		//Notes:
-		//windspeed is metres/second
+		//windspeed is metres/second - Wind direction is in degrees
 		//Temperatures are always Celcius
-		//Current speeds are always Knots
+		//Current speeds are always Knots - Current direction is in degrees
 		//Legspeeds are in knots
+
+
+		//Technical info
+
+
 		var route = {
 			waypoints: [
-			{ id: 1, name: "pos1", legspeedmin: 12, legspeedmax: 13, lon: 13.711061468866212, lat: 55.07291720021519, winddirection: 120, windspeed: 24, airtemperature: 9, currentdirection: 155, currentspeed: 3.2 },
-			{ id: 2, name: "pos2", legspeedmin: 11, legspeedmax: 12, lon: 12.663240423944345, lat: 54.880610640482985, winddirection: 120, windspeed: 28, airtemperature: 9, currentdirection: 140, currentspeed: 3.1 },
-			{ id: 3, name: "pos3", legspeedmin: 11, legspeedmax: 12, lon: 12.005518697218807, lat: 54.53590450023398, winddirection: 120, windspeed: 30, airtemperature: 9, currentdirection: 136, currentspeed: 3.4 },
-			{ id: 4, name: "pos4", legspeedmin: 10, legspeedmax: 11, lon: 11.93099777456585, lat: 54.569907839824936, winddirection: 120, windspeed: 30, airtemperature: 9, currentdirection: 130, currentspeed: 3.8 }
+			{ id: 0, name: "pos1", legspeedmin: 12, legspeedmax: 13, lon: 13.711061468866212, lat: 55.07291720021519, winddirection: 120, windspeed: 24, airtemperature: 9, currentdirection: 155, currentspeed: 3.2 },
+			{ id: 1, name: "pos2", legspeedmin: 11, legspeedmax: 12, lon: 12.663240423944345, lat: 54.880610640482985, winddirection: 120, windspeed: 28, airtemperature: 9, currentdirection: 140, currentspeed: 3.1 },
+			{ id: 2, name: "pos3", legspeedmin: 11, legspeedmax: 12, lon: 12.005518697218807, lat: 54.53590450023398, winddirection: 120, windspeed: 30, airtemperature: 9, currentdirection: 136, currentspeed: 3.4 },
+			{ id: 3, name: "pos4", legspeedmin: 10, legspeedmax: 11, lon: 11.93099777456585, lat: 54.569907839824936, winddirection: 120, windspeed: 30, airtemperature: 9, currentdirection: 130, currentspeed: 3.8 }
 			]
 		}
 
+
+
+		//BUILD ROUTE AND POINTS *****************************************************
 
 		var createRoute = function () { //assumes no error in route object
 			function createcoords() {
@@ -59,7 +70,7 @@
 
 			var feature = new ol.Feature({ // create the feature
 				geometry: lineString,
-				name: 'RouteLine',
+				//name: 'Route Leg',
 			});
 			var lineStyle = new ol.style.Style({
 				stroke: new ol.style.Stroke({
@@ -121,6 +132,72 @@
 
 
 
+		//Place weather markers on route path and start and end
+		var createRouteWeatherMarkers = function () {
+
+			var WORfeature = function (count) {
+				var features;
+
+				//Determine a number of WOR Markers (WORM) to place (2/3) of route markers, maximum & minimum
+
+				//Choose which routemarkers will be used for WORMs so they are not too close to each other
+
+				for (var i = 0; i != count; i++) {
+
+						//Place positions of chosen legs into object as pairs
+						//Simulate weather conditions for markers (Windspeed, winddirection, currentspeed, currentdirection, wavedirection, waveheight.) (No water depth yet.)
+
+					//Place generate marker and push into object
+
+
+					features = new ol.Feature({ // create the feature
+						geometry: new ol.geom.Circle([route.waypoints[0].lon, route.waypoints[0].lat]).transform('EPSG:4326', 'EPSG:3857'),
+						name: 'RouteStartDot',
+						lon: route.waypoints[0].lon,
+						lat: route.waypoints[0].lat
+					});
+				}
+				return features
+			} //end features
+
+			var circleStyle = new ol.style.Style({
+				stroke: new ol.style.Stroke({
+					color: 'rgba(200,0,0,1)',
+					width: 20
+				}),
+				fill: new ol.style.Fill({
+					color: 'rgba(255, 0, 255, 0.1)'
+				})
+			});
+
+			var source = new ol.source.Vector({
+				features: [feature1, feature2]
+			});
+
+			var vectorLayer = new ol.layer.Vector({
+				source: source,
+				style: [circleStyle],
+				name: 'routedots'
+			});
+
+			return vectorLayer;
+		}
+
+		//END BUILD ROUTE AND POINTS *****************************************************
+
+
+		//WEATHER ON ROUTE MARKER (WORM) *****************************************************
+
+
+
+		//END WEATHER ON ROUTE MARKER (WORM) *****************************************************
+
+
+
+
+
+
+
 		// MAP INIT
 		//**************************************************************
 		//**************************************************************
@@ -144,7 +221,16 @@
 
 
 
+		//POPUP OVERLAY
+		//**************************************************************
+		var popelem = document.getElementById('popup');
+		var popup = new ol.Overlay({
+			element: popelem,
+			positioning: 'bottom-center',
+			stopEvent: false
 
+		});
+		map.addOverlay(popup);
 
 
 
@@ -157,8 +243,6 @@
 			function (feature) {
 				return feature;
 			});
-
-
 			var indexOfFeatures = "RouteStartDot, RouteEndDot"
 			if (feature) {
 				if (indexOfFeatures.indexOf(feature.get('name')) > -1) {
@@ -169,7 +253,6 @@
 			}
 
 		});
-
 
 
 
@@ -184,11 +267,33 @@
 			function (feature) {
 				return feature;
 			});
-			if (feature) {
+
+			//POPUP--------------------
+			if (feature) { //a feature can have more info so is generated differently for now
+				$(popelem).popover('destroy'); //kill existing popover
+				function delayedPopElem() { //delayed a bit because race condition on destroy
+					var featurename;
+					(feature.get('name') && feature.get('name') != '') ? featurename = feature.get('name') : featurename='';
+					$(popelem).popover({
+						'placement': 'top',
+						'html': true,
+						'content': featurename,
+					});
+					popup.setPosition(evt.coordinate);
+					if (featurename!='') $(popelem).popover('show');
+				}
+				setTimeout(function () {
+					delayedPopElem(); //create the new popover
+				}, 200); //slowest browser could do it in 150ms.
+
 				console.log("Clicked on: " + feature.get('name') + " - Coords:" + feature.get('lon') + "," + feature.get('lat'));
 			} else {
+				$(popelem).popover('destroy'); //kill existing popover
 				console.log("Clicked on nothing.");
 			}
+			//END POPUP--------------------
+
+
 		});
 
 		//ZOOM DETECT - rescale items as needed
