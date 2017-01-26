@@ -65,6 +65,7 @@
 		Place generate marker and push into object
 		Make thick invisible line over route, when clicked, displays WORM for that location, in the RTZ ETA timeframe.
 		when user clicks anywhere on map outside of route, generate a WORM and populate with data.
+		rescale WOR images to fit proportinal with correct to scale with existing windmarkers
 
 
 		QUESTION AND MISSING
@@ -96,10 +97,14 @@
 		//DEFINITIONS ------------------------------------------------------------------------------------------
 		var route = {
 			waypoints: [
-			{ id: 0, name: "pos1", legspeedmin: 12, legspeedmax: 13, lon: 13.711061468866212, lat: 55.07291720021519, winddirection: 120, windspeed: 24, airtemperature: 9, currentdirection: 155, currentspeed: 3.2 },
+			{ id: 0, name: "pos1", legspeedmin: 12, legspeedmax: 13, lon: 13.711061468866212, lat: 55.07291720021519, winddirection: 190, windspeed: 24, airtemperature: 9, currentdirection: 155, currentspeed: 3.2 },
 			{ id: 1, name: "pos2", legspeedmin: 11, legspeedmax: 12, lon: 12.663240423944345, lat: 54.880610640482985, winddirection: 120, windspeed: 28, airtemperature: 9, currentdirection: 140, currentspeed: 3.1 },
-			{ id: 2, name: "pos3", legspeedmin: 11, legspeedmax: 12, lon: 12.005518697218807, lat: 54.53590450023398, winddirection: 120, windspeed: 30, airtemperature: 9, currentdirection: 136, currentspeed: 3.4 },
-			{ id: 3, name: "pos4", legspeedmin: 10, legspeedmax: 11, lon: 11.93099777456585, lat: 54.569907839824936, winddirection: 120, windspeed: 30, airtemperature: 9, currentdirection: 130, currentspeed: 3.8 }
+			{ id: 2, name: "pos3", legspeedmin: 11, legspeedmax: 12, lon: 12.005518697218807, lat: 54.53590450023398, winddirection: 122, windspeed: 30, airtemperature: 9, currentdirection: 136, currentspeed: 3.4 },
+			{ id: 3, name: "pos4", legspeedmin: 10, legspeedmax: 11, lon: 11.93099777456585, lat: 54.569907839824936, winddirection: 145, windspeed: 30, airtemperature: 9, currentdirection: 130, currentspeed: 3.8 },
+			{ id: 4, name: "pos5", legspeedmin: 10, legspeedmax: 11, lon: 11.883514521671373, lat: 54.567784008455305, winddirection: 160, windspeed: 30, airtemperature: 9, currentdirection: 130, currentspeed: 3.6 }
+
+
+
 			]
 		}
 		//END DEFINITIONS ------------------------------------------------------------------------------------------
@@ -185,26 +190,13 @@
 
 
 		//Weather On Route Marker (WORM) generator
-		WORMstyle = function (zoomlvl, src) { //route start end style - scales according to zoom level in USER INTERACTION section
-		console.log("src:",src)
-			return [new ol.style.Style({
-				image: new ol.style.Icon(({
-					opacity: 0.75,
-					//rotation: degToRad(-135), //wavepointer is pointing lowerright
-					//anchor: [0.5, 0.5],
-					//anchorXUnits: 'fraction',
-					//anchorYUnits: 'fraction',
-					src: src,
-					scale: 0.5 //- (zoomlvl/10)
-				}))
-			})];
-		};
+
 		var WORMarker; //When user clicks anywhere on map
 		var WORMarkers = []; //array for multiple markers along route
 		var generateWORM = function (identifier) { //identifier is given so it can be styled
 			var iconFeature = new ol.Feature({ //WAVEARROW
 				geometry: new ol.geom.Point([13, 54]).transform('EPSG:4326', 'EPSG:3857'),
-				name: 'WOR_backdropcircle',
+				name: 'WOR_wavemarker',
 				type: identifier,
 				src: 'WOR_backdropcircle.png',
 			});
@@ -220,12 +212,12 @@
 				}))
 			});
 			iconFeature.setStyle(iconStyle);
-			iconFeature.setId('WOR_backdropcircle');
+			iconFeature.setId('WOR_wavemarker');
 
 			//CURRENTARROW
 			var iconFeature2 = new ol.Feature({
 				geometry: new ol.geom.Point([13, 54]).transform('EPSG:4326', 'EPSG:3857'),
-				name: 'WOR_innercircle',
+				name: 'WOR_currentmarker',
 				type: identifier,
 				src: 'WOR_innercircle.png',
 			});
@@ -241,7 +233,7 @@
 				}))
 			});
 			iconFeature2.setStyle(iconStyle);
-			iconFeature2.setId('WOR_innercircle');
+			iconFeature2.setId('WOR_currentmarker');
 
 			//WINDARROW
 			var iconFeature3 = new ol.Feature({
@@ -271,7 +263,7 @@
 
 
 
-			//END WEATHER ON ROUTE MARKER (WORM) *****************************************************
+		//END WEATHER ON ROUTE MARKER (WORM) *****************************************************
 
 
 
@@ -372,20 +364,47 @@
 					return feature;
 				});
 
-				if (feature) { //a feature can have more info so is generated differently for now
-					console.log("Clicked on: " + feature.get('name') + " - Coords:" + feature.get('lon') + "," + feature.get('lat'));
-				} else {
-					console.log("Clicked on nothing.");
-				}
+				//debug
+				//if (feature) { //a feature can have more info so is generated differently for now
+				//console.log("Clicked on: " + feature.get('name') + " - Coords:" + feature.get('lon') + "," + feature.get('lat'));
+				//} else {
+				//	console.log("Clicked on nothing.");
+				//}
 
 
 				//Place a WORM (feature 'type' == '_usermarker') by moving the existing one at pos 0,0 scaled to 0 or where user last clicked it
 				if (!feature) {
-					//feature.getStyle().getImage().setRotation(135 * 0.01745329251);
-					//feature.get("name")
-					console.log("Going to move WORM to:", lonlat)
+					map.getLayers().forEach(function (layer, i) {
+						if (layer instanceof ol.layer.Vector) {
+							var src = layer.getSource();
+							if (src) {
+								var randomangle = 1 + Math.floor(Math.random() * 360);
+								var randomangle2 = randomangle + (Math.floor(Math.random() * 20)); //20 degrees offset for wind/waves.
+								var randomangle3 = randomangle + (Math.floor(Math.random() * 90)); //20 degrees offset for wind/waves.
+								src.forEachFeature(function (feature) { //loop through each feature
+									var name = feature.get("name");
+									var type = feature.get("type");
+									
+									if (type && type != '') {
+										if (type == '_usermarker') {
+											feature.getGeometry().setCoordinates(ol.proj.transform([+lon, +lat], 'EPSG:4326', 'EPSG:3857'));
+
+											if (name == 'WOR_windmarker') {
+												feature.getStyle().getImage().setRotation(randomangle * 0.01745329251);
+											}
+											if (name == 'WOR_wavemarker') {
+												feature.getStyle().getImage().setRotation(randomangle2 * 0.01745329251);
+											}
+											if (name == 'WOR_currentmarker') {
+												feature.getStyle().getImage().setRotation(randomangle3 * 0.01745329251);
+											}
+										}
+									}
+								})
+							}
+						}
+					});
 				}
-				//	feature.getStyle().getImage().setRotation(135 * 0.01745329251);
 
 
 
@@ -427,9 +446,12 @@
 									
 									if (type == '_usermarker') {
 										if (zoomlvl > 5) {
-											feature.getStyle().getImage().setScale(.5 * (zoomlvl / 10));
-										} else {
-											feature.getStyle().getImage().setScale(0.00001);
+											//compensating zoom level magnification to avoid clutter
+											if (zoomlvl > 5) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 10));
+											if (zoomlvl > 10) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 15));
+											if (zoomlvl > 16) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 20));
+									} else {
+											feature.getStyle().getImage().setScale(0.00001); //hide it when zooming too far out
 										}
 									}
 								}
