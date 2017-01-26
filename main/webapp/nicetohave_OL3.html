@@ -1,0 +1,91 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+	<meta charset="utf-8" />
+</head>
+<body>
+
+</body>
+</html>
+
+
+		////Place testmarker for icontest
+
+
+		//var mapVectorSource = new ol.source.Vector({
+		//	features: []
+		//});
+		//var mapVectorLayer = new ol.layer.Vector({
+		//	source: mapVectorSource
+		//});
+
+		//map.addLayer(mapVectorLayer);
+		//function createMarker(location, style) {
+		//	var iconFeature = new ol.Feature({
+		//		geometry: new ol.geom.Point(location)
+		//	});
+		//	iconFeature.setStyle(style);
+
+		//	return iconFeature
+		//}
+		//iconStyle = new ol.style.Style({
+		//	image: new ol.style.Icon(/** @type {olx.style.IconOptions} */({
+		//		anchor: [0.5, 1],
+		//		anchorXUnits: 'fraction',
+		//		anchorYUnits: 'fraction',
+		//		src: 'circle-icon-25.png',
+		//		scale:0.2
+		//	}))
+		//});
+		//var marker = createMarker(ol.proj.transform([38, 50], 'EPSG:4326', 'EPSG:3857'), iconStyle);
+		//mapVectorSource.addFeature(marker);
+
+
+
+
+
+//ADDS A VECTOR TO A LAYER
+		var generateWaveTriangle = function () {//consists of 4 triangles
+			function createtriangle1() {
+				var ret = [];
+					var tmparr = [];
+
+					tmparr.push(13);
+					tmparr.push(55);
+					ret.push(tmparr);
+
+					var tmparr = [];
+					tmparr.push(12);
+					tmparr.push(55);
+					ret.push(tmparr);
+
+					var tmparr = [];
+					tmparr.push(12);
+					tmparr.push(54);
+					ret.push(tmparr);
+
+					var tmparr = [];
+					tmparr.push(13);
+					tmparr.push(55);
+					ret.push(tmparr);
+
+					return ret
+			}
+			var coords = createtriangle1();
+			console.log(coords);
+			var lineString = new ol.geom.LineString(coords);
+			lineString.transform('EPSG:4326', 'EPSG:3857'); //transform to EPSG:3857
+			var feature = new ol.Feature({ // create the feature
+				geometry: lineString,
+				name: 'wavetriangle1',
+			});
+			feature.setId("wavetriangle1");
+			feature.setStyle(WORMstyle('wavetriangle1'));
+			//console.log(lineString);
+
+
+			return [feature];
+
+		}
+
