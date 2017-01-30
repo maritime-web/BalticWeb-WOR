@@ -483,3 +483,5 @@
 /// <reference path="../vessel/vessel-details-ctrl.js" />
 /// <reference path="../vessel/vessel-dialog-ctrl.js" />
 /// <reference path="../vessel/vessel-service.js" />
+/// <reference path="../WORext/jquery.min.js" />
+/// <reference path="../WORext/ol.js" />

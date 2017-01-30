@@ -89,3 +89,69 @@
 
 		}
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+				//weatherpattern generator for fake data
+		var weatherWindSpeedMaxInc = 5; //so doesn't go overboard. (factor 10 for accuracy)
+		var weatherPattern =[]// = matrix(50,30); //fake weather data object for map area around route
+
+		var weatherPosGen = function () {
+			return weatherData;
+		}
+		//var weatherPattern = { //fake weather data object for map area around route
+		//	positions: []
+		//}
+
+		//push data into weatherPattern
+		var weatherLastWindSpeedLat = 0; //remembers last windspeed so it doesnt get too far out of hand, is cleared every 100 lat runs of weatherPosGen
+		for (var y = 0; y != 50; y++) {
+			var tmpwindspeed = getRandomInt(parseInt(weatherLastWindSpeedLat), parseInt(weatherWindSpeedMaxInc));
+			weatherLastWindSpeedLat = parseInt(weatherLastWindSpeedLat) + parseInt(tmpwindspeed);
+
+			var tmppattern = [];
+			var ipos = 0;
+			for (var i = 0; i != 30; i++) { //50lat* 30lon positions = 1500 positions
+				tmppattern.push({ id: i, ws: (tmpwindspeed)});
+
+			}
+			weatherPattern[y] = (tmppattern); //add to array
+
+		}
+		console.log("weatherPattern:", weatherPattern);
+
+		var weatherPatternOnPosition = function () { //returns billiniar interpolation value of specific point at 100//100 resolution
+
+		}
+		//END weatherpattern generator for fake data
+
+		if (1 == 1) {
+			$("#popup").css('position', 'relative')
+			$("#popup").css('left', '10px')
+			$("#popup").css('top', '0px')
+			$("#popup").css('width', '100')
+			$("#popup").css('height', '60')
+			$("#popup").css('background-color', '#eeeeee')
+			$("#popup").css('z-order', '9999')
+
+
+
+			for (var y = 0; y != weatherPattern.length; y++) {
+				for (var x = 0; x != weatherPattern[0].length; x++) {
+
+					//var col = weatherPattern.positions;
+					$("#popup").append("<div style='position:absolute;left:" + (y + y) + "px;top:" + (x + x) + "px;width:2px;height:2px;background-color:rgba(" + weatherPattern[y][x].ws + ", 0, 0, 1)'>&nbsp;</div>")
+				}
+			}
+			console.log(weatherPattern[0].length)
+		}

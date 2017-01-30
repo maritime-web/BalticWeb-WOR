@@ -1,88 +1,644 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>BETA Version - BalticWeb - Maritime Cloud </title>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular-animate.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular-sanitize.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular-route.js"></script>
-    <!--<script src="//cdnjs.cloudflare.com/ajax/libs/angular-ui-router/0.3.1/angular-ui-router.min.js"></script>-->
-    <script src="//angular-ui.github.io/bootstrap/ui-bootstrap-tpls-1.3.3.js"></script>
-    <script src="//use.fontawesome.com/40f01fd2ee.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.19.0/ol.js" ></script>
-    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.18.2/ol-debug.js" ></script>-->
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script> <!-- still used in the menu dropdowns -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
-    <script src="https://cdn.rawgit.com/abdmob/x2js/master/xml2json.js"></script>
-    <script src="libs/json-formatter/dist/json-formatter.min.js"></script>
-    <script src="https://cdn.rawgit.com/kripken/xml.js/master/xmllint.js"></script>
-    <!--script src="libs/xml2json/lib/xml2json.js"></script-->
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.19.0/ol.css">
-    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
-    <link rel="stylesheet" href="libs/world-flags/flags16.css" />
-    <link rel="stylesheet" href="libs/world-flags/flags32.css" />
-
-    <!-- build:css style/balticweb.css -->
-    <link rel="stylesheet" href="style/balticweb.css" />
-    <link rel="stylesheet" href="libs/growl2-lib/angular-growl.min.css" />
-    <link rel="stylesheet" href="libs/json-formatter/dist/json-formatter.min.css" />
-    <!-- endbuild -->
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<title>BW - WORM - prototype</title>
+	<link rel="stylesheet" href="WORext/ol.css" type="text/css">
+	<!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
+	<script src="WORext/ol.js"></script>
+	<script src="WORext/jquery.min.js"></script> <!-- still used in the menu dropdowns -->
+	<link rel="stylesheet" href="WORext/bootstrap.min.css">
 
 </head>
-<body ng-cloak>
-<div growl limit-messages="13"></div>
+<body>
 
-<div ng-controller="AppController">
-    <div ng-include="'partials/menu.html'"></div>
+	<style type="text/css">
+		html, body, #basicMap {
+			width: 100%;
+			height: 100%;
+			margin: 0;
+		}
 
-    <div class="container-fluid">
-        <div class="row">
-            <div ng-view ></div>
-            <div ng-include="'partials/sidebar.html'"></div>
-        </div>
-    </div>
-    <div ng-include="'partials/footer.html'"></div>
-</div>
+		.hide {
+			left: -20000px;
+		}
+	</style>
 
-<!-- build:js js/balticweb.js -->
-<script src="libs/angular-timeago/dist/angular-timeago.js"></script>
-<script src="libs/numeral/min/numeral.min.js"></script>
-<script src="libs/chart.js/Chart.js"></script>
-<script src="libs/angular-chart.js/angular-chart.js"></script>
-<script src="libs/iso-3166-country-codes-angular/dist/iso-3166-country-codes-angular.min.js"></script>
-<script src="libs/world-flags/ng-flags.js"></script>
-<script src="libs/growl2-lib/angular-growl.min.js"></script>
-<script src="libs/moment/min/moment-with-locales.min.js"></script>
-<script src="libs/ng-file-upload/dist/ng-file-upload.min.js"></script>
-<script src="libs/geolib/dist/geolib.js"></script>
-<script src="main-app/keycloak.js"></script>
-<script src="main-app/keycloak-angular-initializer.js"></script>
-<script src="main-app/app.js"></script>
-<script src="main-app/app-ctrl.js"></script>
-<script src="main-app/app-route-config.js"></script>
-<script src="main-app/accept-terms-ctrl.js"></script>
-<script src="main-app/growl-config.js"></script>
-<script src="map/position.js"></script>
-<script src="map/map-service.js"></script>
-<script src="map/map-directives.js"></script>
-<!--<script src="route/route-upload-ctrl.js"></script>-->
-<script src="route/route-load-ctrl.js"></script>
-<script src="route/route-filereader.js"></script>
-<script src="route/route-animate-layer.js"></script>
-<script src="route/route-rtz-directive.js"></script>
-<script src="route/compass.js"></script>
-<script src="vessel/ais-vessel-layer.js"></script>
-<script src="vessel/vessel-service.js"></script>
-<script src="vessel/vessel-dialog-ctrl.js"></script>
-<script src="vessel/vessel-details-ctrl.js"></script>
-<script src="nw-nm/nw-nm-layer.js"></script>
-<script src="nasa-satellite/nasa-satellite-layer.js"></script>
-<!-- endbuild -->
 
-<script src="main-app/google-analytics.js"></script>
+	<div id="map" class="map" style="z-index: 0;height:100%;width:100%;"></div>
+
+	<div id="logoDiv" class="" style="position:absolute;left:60px;top:15px;height:auto;width:20%;background:#ffffff;opacity:0.9;border-radius:7px;cursor:pointer;">
+		<img src="WORext/DMA_logo_english.png" style="position:relative;left:5%;top:0px;width:90%;">
+		<div style="position:relative;left:5%;width:90%;height:auto;text-align:center;">
+			<br />
+			Weather On Route Marker
+			<br />
+			<span style="color:#bb0000;font-size:1.3em;"> - prototype - </span>
+		</div>
+	</div>
+
+		<div id="containerDiv" class="hide" style="position:absolute;left:0px;top:0px;height:100%;width:100%;">
+			<div id="popup" style="position:absolute;left:10%;top:10%;height:80%;width:80%;background-color:#ffffff;border-radius:14px;overflow:hidden;">
+				<div style="position:absolute;top:2%;left:3%;width:30%;height:95%;background:#ffffff;overflow:hidden;">
+					<img src="WORext/DMA_logo_english.png" style="position:relative;left:0px;top:20px;width:90%;">
+					<img src="WORext/WOR_iconexample2.png" style="position:absolute;left:0px;top:40%;width:90%;">
+				</div>
+
+				<br><br>
+				<div style="position:absolute;top:2%;left:33%;width:66%;height:95%;background:#ffffff;overflow-y:scroll;">
+					<div style="position:relative;top:0px;left:0px;width:100%;height:20px;text-align:center;background:#ffffff;">
+						Weather On Route Marker (WORM)
+					</div>
+					<div style="position:relative;top:0px;left:0px;width:100%;height:auto;text-align:left;background:#ffffff;font-size:0.8em;">
+						The WORM is an experimental design to simplify the display of 6 weather related points of data in single, easily interpretable, colourless symbol.
+						<br><br>
+						<ol>
+							<li>Wind direction (standard wind arrow)</li>
+							<li>Wind speed (m/s)</li>
+							<li>Wave direction</li>
+							<li>Wave height (mean significant height in metres with one decimal)</li>
+							<li>Current direction</li>
+							<li>Current speed (knots with one decimal)</li>
+						</ol>
+					</div>
+					<div style="position:relative;top:0px;left:0px;width:100%;height:auto;text-align:left;background:#ffffff;font-size:0.8em;">
+						Derivation of symbolism:
+						<ul>
+							<li>Wave symbol: high contrast triangles on the outside circle - "waves are <u><b>on</b></u> the water".</li>
+							<li>Current symbol: Solid triangle inside the cricle - "Current is <u><b>under</b></u> the water".</li>
+							<li>Wind arrow symbol: - the reference to integrate the wave and current symbols, without changing the existing standard.</li>
+						</ul>
+						Development notes:
+						<ul>
+							<li>
+								The WORM values are currently not aligning correctly with the symbol. This is an early model, please ignore the bug. The clickable WORM displays the text correctly, but the data is random.
+							</li>
+							<li>
+								This may or may not be the final form of the WORM, human testing is required. Any constructive input is welcome. Please email your suggestion to <b>rob@dma.dk</b>
+							</li>
+							<li>
+								This prototype only encompasses the concept for the WORM and does not represent the Weather On Route service as a whole.
+							</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+		<script>
+
+			$('#containerDiv').on('click', function (evt) {
+				$('#containerDiv').addClass('hide');
+			});
+			$('#logoDiv').on('click', function (evt) {
+				$('#containerDiv').removeClass('hide');
+			});
+
+			
+			/*
+
+			Notes:
+			Windspeed is metres/second - Wind direction is in degrees
+			Temperatures are always Celcius
+			Current speeds are always Knots - Current direction is in degrees
+			Legspeeds are in knots
+
+
+			CODE SECTION OVERVIEW:
+			Manipulation handles
+				math
+
+			Definitions
+				mock RTZ object
+				Weather On Route Marker (WORM) generator
+
+			Content building
+				Route and Points
+				Weather On Route Marker (WORM)
+
+			Map init
+
+			User interaction
+				mousemove
+				mouseover
+				mouseclick
+
+
+			TODO:
+			Determine a number of WOR Markers (WORM) to place (2/3) of route markers, maximum & minimum
+			Choose which routemarkers will be used for WORMs so they are not too close to each other
+			Place positions of chosen legs into object as pairs
+			Simulate weather conditions for markers (Windspeed, winddirection, currentspeed, currentdirection, wavedirection, waveheight.) (No water depth yet.)
+			Place generate marker and push into object
+			Make thick invisible line over route, when clicked, displays WORM for that location, in the RTZ ETA timeframe.
+			when user clicks anywhere on map outside of route, generate a WORM and populate with data.
+			rescale WOR images to fit proportinal with correct to scale with existing windmarkers
+
+
+			QUESTION AND MISSING
+			1: Does a click on land - request for weather data from DMI, display water depth = 0 or what?
+
+
+			*/
+
+
+
+
+
+
+			//MANIPULATION HANDLES -----------------------------------------------------------------------------
+			// convert degrees to radians
+			function degToRad(deg) {
+				return deg * Math.PI * 2 / 360;
+			}
+
+			// convert radians to degrees
+			function radToDeg(rad) {
+				return rad * 360 / (Math.PI * 2);
+			}
+
+			function getRandomInt(min, max) {
+				min = Math.ceil(min);
+				max = Math.floor(max);
+				return Math.floor(Math.random() * (max - min)) + min;
+			}
+
+			function calcSinCosFromAngle(xy, angle, radius) { //requires ('x' or 'y'), angle in degrees and radius in px.
+				var SinCos;
+				if (xy == 'x') SinCos = radius * Math.cos(angle); // Calculate the x position of the element.
+				if (xy == 'y') SinCos = radius * Math.sin(angle); // Calculate the y position of the element.
+				return SinCos;
+			}
+
+
+			//END MANIPULATION HANDLES -----------------------------------------------------------------------------
+
+
+
+
+			//DEFINITIONS ------------------------------------------------------------------------------------------
+
+			var route = {
+				waypoints: [
+				{ id: 0, name: "pos1", legspeedmin: 12, legspeedmax: 13, lon: 13.711061468866212, lat: 55.07291720021519, winddirection: 190, windspeed: 24, airtemperature: 9, currentdirection: 155, currentspeed: 3.2 },
+				{ id: 1, name: "pos2", legspeedmin: 11, legspeedmax: 12, lon: 12.663240423944345, lat: 54.880610640482985, winddirection: 120, windspeed: 28, airtemperature: 9, currentdirection: 140, currentspeed: 3.1 },
+				{ id: 2, name: "pos3", legspeedmin: 11, legspeedmax: 12, lon: 12.005518697218807, lat: 54.53590450023398, winddirection: 122, windspeed: 30, airtemperature: 9, currentdirection: 136, currentspeed: 3.4 },
+				{ id: 3, name: "pos4", legspeedmin: 10, legspeedmax: 11, lon: 11.93099777456585, lat: 54.569907839824936, winddirection: 145, windspeed: 30, airtemperature: 9, currentdirection: 130, currentspeed: 3.8 },
+				{ id: 4, name: "pos5", legspeedmin: 10, legspeedmax: 11, lon: 11.883514521671373, lat: 54.567784008455305, winddirection: 160, windspeed: 30, airtemperature: 9, currentdirection: 130, currentspeed: 3.6 }
+				]
+			}
+			//END DEFINITIONS ------------------------------------------------------------------------------------------
+
+
+
+
+			//CONTENT BUILDING -----------------------------------------------------------------------------------------
+
+			//Routelines only, returned on its own layer.
+			var createRoute = function () { //assumes no error in route object
+				function createcoords() {
+					var ret = [];
+					for (var i = 0; i != route.waypoints.length; i++) {
+						var tmparr = [];
+						tmparr.push(route.waypoints[i].lon);
+						tmparr.push(route.waypoints[i].lat);
+						ret.push(tmparr);
+					}
+					return ret
+				}
+				var coords = createcoords();
+				var lineString = new ol.geom.LineString(coords);
+				lineString.transform('EPSG:4326', 'EPSG:3857');
+				var feature = new ol.Feature({ // create the feature
+					geometry: lineString,
+					//name: 'Route Leg',
+				});
+				var lineStyle = new ol.style.Style({
+					stroke: new ol.style.Stroke({
+						color: 'rgba(255,0,0,0.5)',
+						width: 5
+					})
+				});
+				var source = new ol.source.Vector({
+					features: [feature]
+				});
+				var vectorLayer = new ol.layer.Vector({
+					source: source,
+					style: [lineStyle],
+					name: 'routelineslayer'
+				});
+				return vectorLayer;
+			}
+
+
+
+
+			//Route start & end points - names: RouteStartDot, RouteEndDot
+			RSEstyle = function () { //route start end style - scales according to zoom level in USER INTERACTION section
+				return [new ol.style.Style({
+					stroke: new ol.style.Stroke({
+						color: 'rgba(200,0,0,1)',
+						width: 10
+					})
+				})];
+			};
+			var createRouteDots = function () {
+				var feature1 = new ol.Feature({ // create the feature
+					geometry: new ol.geom.Circle([route.waypoints[0].lon, route.waypoints[0].lat]).transform('EPSG:4326', 'EPSG:3857'),
+					name: 'RouteStartDot',
+					lon: route.waypoints[0].lon,
+					lat: route.waypoints[0].lat
+				});
+				var feature2 = new ol.Feature({ // create the feature
+					geometry: new ol.geom.Circle([route.waypoints[route.waypoints.length - 1].lon, route.waypoints[route.waypoints.length - 1].lat]).transform('EPSG:4326', 'EPSG:3857'),
+					name: 'RouteEndDot',
+					lon: route.waypoints[route.waypoints.length - 1].lon,
+					lat: route.waypoints[route.waypoints.length - 1].lat
+				});
+				feature1.setId('RouteStartDot');
+				feature2.setId('RouteEndDot');
+				feature1.setStyle(RSEstyle());
+				feature2.setStyle(RSEstyle());
+				return [feature1, feature2];
+			}
+
+
+
+
+
+
+
+
+			//Weather On Route Marker (WORM) generator
+			//var WORMWaveparams = { text: '2,5', rot: -135, anchor: [0.52, 0.25] };
+			var retWORMWaveStyle = function (scale, wavedir, wavestr) {
+				if (!scale) scale = 1;
+				if (!wavedir) wavedir = 180;
+				if (!wavestr) wavestr = 0;
+				var WORMWaveStyle = new ol.style.Style({
+					image: new ol.style.Icon({
+						opacity: 0.75,
+						rotation: degToRad(wavedir), //wavepointer is pointing lowerright
+						anchor: [(0.5), (0.5)],
+						anchorXUnits: 'fraction',
+						anchorYUnits: 'fraction',
+						src: 'WORext/WOR_backdropcircle.png', //needs path
+						scale: (0.5 * scale)
+					}),
+					text: new ol.style.Text({
+						font: '12px helvetica,sans-serif',
+						text: ('' + wavestr),
+						offsetX: calcSinCosFromAngle('x', wavedir, (36 * scale)),
+						offsetY: calcSinCosFromAngle('y', wavedir, (36 * scale)),
+						scale: (1 * scale),
+
+						//rotation: 360 * rnd * Math.PI / 180,
+						fill: new ol.style.Fill({
+							color: '#000'
+						}),
+						stroke: new ol.style.Stroke({
+							color: '#fff',
+							width: 1
+						})
+					})
+				});
+				return WORMWaveStyle;
+			}
+
+
+			//var WORMCurrentparams = { text: '2', rot: -135, anchor:  };
+			var retWORMCurrentStyle = function (scale, currdir, currstr) {
+				if (!scale) scale = 1;
+				if (!currdir) currdir = 180;
+				if (!currstr) currstr = 0;
+				var WORMCurrentStyle = new ol.style.Style({
+					image: new ol.style.Icon({
+						opacity: 1,
+						rotation: degToRad(currdir), //currentpointer is pointing lowerright
+						anchor: [0.5, 0.5],
+						anchorXUnits: 'fraction',
+						anchorYUnits: 'fraction',
+						src: 'WORext/WOR_innercircle.png', //needs path
+						scale: (0.5 * scale)
+					}),
+					text: new ol.style.Text({
+						font: '10px helvetica,sans-serif',
+						text: ('' + currstr),
+						offsetX: calcSinCosFromAngle('x', currdir, (22 * scale)),
+						offsetY: calcSinCosFromAngle('y', currdir, (22 * scale)),
+						scale: (1 * scale),
+						//rotation: 360 * rnd * Math.PI / 180,
+						fill: new ol.style.Fill({
+							color: '#000'
+						}),
+						stroke: new ol.style.Stroke({
+							color: '#fff',
+							width: 1
+						})
+					})
+				});
+				return WORMCurrentStyle;
+			}
+
+
+			//var WORMWindparams = { rot: -135, anchor: [0.5, 0.5] };
+			var retWORMWindStyle = function (scale, winddir, windstr) {
+				if (!scale) scale = 1;
+				if (!winddir) winddir = 180;
+				var WORMWindStyle = new ol.style.Style({
+					image: new ol.style.Icon(({
+						opacity: 1,
+						rotation: degToRad(winddir), //windpointer is straight is pointing straight down
+						anchor: [(0.52), (0.25)],
+						anchorXUnits: 'fraction',
+						anchorYUnits: 'fraction',
+						src: 'WORext/wind/mark005.png', //needs path and windstr to paint correct arrow
+						scale: (0.70 * scale)
+					}))
+				});
+				return WORMWindStyle;
+			}
+
+
+
+
+			var WORMarker; //When user clicks anywhere on map
+			var WORMarkers = []; //array for multiple markers along route
+			var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, wavestr) { //type is given so it can be styled, identifier must be unique.
+				if (!lon || !lat) { lon = 0; lat = 0; }
+				var iconFeature = new ol.Feature({ //WAVEARROW
+					geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
+					name: 'WOR_wavemarker',
+					type: type,
+					src: 'WORext/WOR_backdropcircle.png',
+				});
+				iconFeature.setStyle(retWORMWaveStyle(scale, wavedir, wavestr)); //generated style
+				iconFeature.setId(type + 'WOR_wavemarker');
+
+				//CURRENTARROW
+				var iconFeature2 = new ol.Feature({
+					geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
+					name: 'WOR_currentmarker',
+					type: type,
+					src: 'WORext/WOR_innercircle.png',
+				});
+				iconFeature2.setStyle(retWORMCurrentStyle(scale, currdir, currstr));
+				iconFeature2.setId(type + 'WOR_currentmarker');
+
+				//WINDARROW
+				var iconFeature3 = new ol.Feature({
+					geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
+					name: 'WOR_windmarker',
+					type: type,
+					src: 'WORext/wind/mark005.png',
+				});
+				iconFeature3.setStyle(retWORMWindStyle(scale, winddir, windstr));
+				iconFeature3.setId(type + 'WOR_windmarker');
+
+				return [iconFeature, iconFeature2, iconFeature3];
+			}
+			WORMarker = generateWORM('_usermarker', 'clickmarker', 13, 54, 1);
+
+
+
+			//END WEATHER ON ROUTE MARKER (WORM) *****************************************************
+
+
+
+
+
+			var generateRouteLayer = function () {
+				var point = new ol.geom.Point([0, 0]).transform('EPSG:4326', 'EPSG:3857'); //transform to EPSG:3857
+				var feature = new ol.Feature({ // create the feature
+					geometry: point,
+				});
+				var pointStyle = new ol.style.Style({
+					stroke: new ol.style.Stroke({
+						color: 'rgba(255,0,0,0)',
+						width: 100
+					})
+				});
+				var source = new ol.source.Vector({
+					features: [feature]
+				});
+				var routeLayer = new ol.layer.Vector({
+					source: source,
+					style: [pointStyle],
+					name: 'routeLayer'
+				});
+				return routeLayer;
+			}
+
+
+			// MAP INIT
+			//**************************************************************
+			//**************************************************************
+
+			var routeLayer = generateRouteLayer();
+
+			var routeHandle = createRoute();
+			var routeDotsHandle = createRouteDots();
+
+			var map = new ol.Map({
+				loadTilesWhileInteracting: true,
+				target: 'map',
+				layers: [
+				new ol.layer.Tile({
+					source: new ol.source.OSM()
+				}), routeHandle, routeLayer
+				],
+				view: new ol.View({
+					center: ol.proj.transform([12.68383978917871, 54.83159902246746], 'EPSG:4326', 'EPSG:3857'),
+					zoom: 9
+				})
+			});
+
+			var source = routeLayer.getSource();
+			source.addFeatures(routeDotsHandle);
+			//source.addFeatures(generateWORM('_routemarker1', 'routemarker1', 13, 54));
+			//source.addFeatures(generateWORM('_routemarker2', 'routemarker2', 14, 54));
+			source.addFeatures(WORMarker);
+
+			//generateWORM('identifier', 'type', lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, wavestr));
+
+			source.addFeatures(generateWORM('_routeWORM1', 'routeWORM1', 11.85311453316363, 54.5174182081806, 0.9, 120, 20, 190, 2, 125, 1.5));
+			source.addFeatures(generateWORM('_routeWORM2', 'routeWORM2', 12.710055233576151, 54.826923606718935, 0.9, 125, 25, 200, 1, 130, 2));
+			source.addFeatures(generateWORM('_routeWORM3', 'routeWORM3', 13.68084906652246, 55.12163532513645, 0.9, 130, 30, 180, 3, 135, 2.5));
+
+
+			//**************************************************************
+			//**************************************************************
+			//MAP INIT END
+
+
+
+
+
+			//**************************************************************
+			// WORM PLOTTING & PLACEMENT
+
+
+
+
+
+			//END WORM PLOTTING & PLACEMENT
+			//**************************************************************
+
+
+
+
+
+
+			//**************************************************************
+			// USER INTERACTION - MOUSE & TOUCH
+
+			map.on('pointermove', function (evt) {
+				var feature = map.forEachFeatureAtPixel(evt.pixel,
+				function (feature) {
+					return feature;
+				});
+				var indexOfFeatures = "RouteStartDot, RouteEndDot, routeWORM"
+				if (feature) {
+					if (indexOfFeatures.indexOf(feature.get('name')) > -1) {
+						map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel) ? 'pointer' : '';
+
+					} else if (feature.get('type')) {
+						if (feature.get('type').indexOf('routeWORM') > -1) {
+							map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel) ? 'pointer' : '';
+						}
+					}
+				} else {
+					map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel) ? 'pointer' : '';
+				}
+
+			});
+
+
+
+			map.on('click', function (evt) {
+				var lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+				var lon = lonlat[0];
+				var lat = lonlat[1];
+
+				console.log("Mouse lon:" + lon + " - " + "lat:" + lat);
+
+				var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
+					return feature;
+				});
+
+				//user clicks on routeWORM
+				if (feature && feature.get('type')) {
+					if (feature.get('type').indexOf('routeWORM') > -1) {
+						$('#containerDiv').removeClass('hide');
+					}
+				}
+
+				//debug
+				//console.log("Clicked on: " + feature.get('name') + " - Coords:" + feature.get('lon') + "," + feature.get('lat'));
+				//var myPixel = map.getView().calculateExtent(map.getSize())
+				//console.log("mypixel:",myPixel);
+
+				//Place a WORM (feature 'type' == '_usermarker') by moving the existing one at pos 0,0 scaled to 0 or where user last clicked it
+				if (!feature) {
+					map.getLayers().forEach(function (layer, i) {
+						if (layer instanceof ol.layer.Vector) {
+							var src = layer.getSource();
+							if (src) {
+								var randomangle = 1 + Math.floor(Math.random() * 360);
+								var randomangle2 = randomangle + (Math.floor(Math.random() * 30)); //20 degrees offset for wind/waves.
+								var randomangle3 = randomangle + (Math.floor(Math.random() * 90)); //20 degrees offset for wind/waves.
+								var randomvalue = (Math.floor(Math.random() * 30)) / 10;
+								src.forEachFeature(function (feature) { //loop through each feature
+									var name = feature.get("name");
+									var type = feature.get("type");
+
+									if (type && type != '') {
+										if (type == 'clickmarker') {
+											feature.getGeometry().setCoordinates(ol.proj.transform([+lon, +lat], 'EPSG:4326', 'EPSG:3857'));
+
+											if (name == 'WOR_windmarker') {
+												winddir = randomangle * 0.01745329251;
+												windstr = '5';
+												feature.setStyle(retWORMWindStyle(1, winddir, windstr));
+												feature.getStyle().getImage().setRotation(winddir);
+											}
+											if (name == 'WOR_wavemarker') {
+												wavedir = randomangle2 * 0.01745329251;
+												wavestr = '' + getRandomInt(1, 5);
+												feature.setStyle(retWORMWaveStyle(1, wavedir, wavestr));
+												feature.getStyle().getImage().setRotation(wavedir);
+											}
+											if (name == 'WOR_currentmarker') {
+												var currdir = randomangle3 * 0.01745329251;
+												var currstr = '' + getRandomInt(1, 3)
+												feature.setStyle(retWORMCurrentStyle(1, currdir, currstr)); //scale, direction, strength
+												feature.getStyle().getImage().setRotation(currdir);
+											}
+										}
+									}
+								})
+							}
+						}
+					});
+				}
+			});
+
+			//ZOOM DETECT - rescale items as needed
+			map.on("moveend", function (e) {
+				var zoomlvl = parseInt(map.getView().getZoom());
+				console.log("Zoom level:" + zoomlvl);
+
+				//loop through all layers to rescale route items so they dont fill the entire area
+				map.getLayers().forEach(function (layer, i) {
+					if (layer instanceof ol.layer.Vector) {
+						var prop = layer.getProperties();
+						var src = layer.getSource();
+						if (src) {
+							src.forEachFeature(function (feature) { //loop through each feature
+								var name = feature.get("name");
+								var type = feature.get("type");
+								var src = feature.get("src");
+								var styleRouteStartEnd = new ol.style.Style({
+									stroke: new ol.style.Stroke({
+										color: 'rgba(200,0,0,1)',
+										width: zoomlvl * 2
+									}),
+									fill: new ol.style.Fill({
+										color: 'rgba(255, 0, 255, 0.1)'
+									})
+								});
+								//Manipulate features as needed
+								if (name && name != '') {
+									if (name == "RouteStartDot") feature.setStyle(RSEstyle());
+									if (name == "RouteEndDot") feature.setStyle(RSEstyle());
+								}
+								if (type && type != '') {
+
+									if (type == 'clickmarker') {
+										if (zoomlvl > 5) {
+											//compensating zoom level magnification to avoid clutter
+											if (zoomlvl > 5) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 10));
+											if (zoomlvl > 10) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 15));
+											if (zoomlvl > 16) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 20));
+										} else {
+											feature.getStyle().getImage().setScale(0.00001); //hide it when zooming too far out
+										}
+									} else if (type.indexOf("routeWORM") != -1) {
+										if (zoomlvl > 5) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 10));
+										if (zoomlvl > 10) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 15));
+										if (zoomlvl > 16) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 20));
+									}
+								}
+							})
+						}
+					}
+				});
+
+			})
+
+
+
+			// END USER INTERACTION - MOUSE & TOUCH
+			//**************************************************************
+
+		</script>
 </body>
 </html>
