@@ -2,11 +2,11 @@
 <html>
 <head>
 	<title>BW - WORM - prototype</title>
-	<link rel="stylesheet" href="WORext/ol.css" type="text/css">
+	<link rel="stylesheet" href="css/ol.css" type="text/css">
 	<!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
-	<script src="WORext/ol.js"></script>
-	<script src="WORext/jquery.min.js"></script> <!-- still used in the menu dropdowns -->
-	<link rel="stylesheet" href="WORext/bootstrap.min.css">
+	<script src="scripts/ol.js"></script>
+	<script src="scripts/jquery.min.js"></script> <!-- still used in the menu dropdowns -->
+	<link rel="stylesheet" href="css/bootstrap.min.css">
 
 </head>
 <body>
@@ -27,7 +27,7 @@
 	<div id="map" class="map" style="z-index: 0;height:100%;width:100%;"></div>
 
 	<div id="logoDiv" class="" style="position:absolute;left:60px;top:15px;height:auto;width:20%;background:#ffffff;opacity:0.9;border-radius:7px;cursor:pointer;">
-		<img src="WORext/DMA_logo_english.png" style="position:relative;left:5%;top:0px;width:90%;">
+		<img src="images/DMA_logo_english.png" style="position:relative;left:5%;top:0px;width:90%;">
 		<div style="position:relative;left:5%;width:90%;height:auto;text-align:center;">
 			<br />
 			Weather On Route Marker
@@ -39,8 +39,8 @@
 		<div id="containerDiv" class="hide" style="position:absolute;left:0px;top:0px;height:100%;width:100%;">
 			<div id="popup" style="position:absolute;left:10%;top:10%;height:80%;width:80%;background-color:#ffffff;border-radius:14px;overflow:hidden;">
 				<div style="position:absolute;top:2%;left:3%;width:30%;height:95%;background:#ffffff;overflow:hidden;">
-					<img src="WORext/DMA_logo_english.png" style="position:relative;left:0px;top:20px;width:90%;">
-					<img src="WORext/WOR_iconexample2.png" style="position:absolute;left:0px;top:40%;width:90%;">
+					<img src="images/DMA_logo_english.png" style="position:relative;left:0px;top:20px;width:90%;">
+					<img src="images/WOR_iconexample2.png" style="position:absolute;left:0px;top:40%;width:90%;">
 				</div>
 
 				<br><br>
@@ -280,7 +280,7 @@
 						anchor: [(0.5), (0.5)],
 						anchorXUnits: 'fraction',
 						anchorYUnits: 'fraction',
-						src: 'WORext/WOR_backdropcircle.png', //needs path
+						src: 'images/WOR_backdropcircle.png', //needs path
 						scale: (0.5 * scale)
 					}),
 					text: new ol.style.Text({
@@ -316,7 +316,7 @@
 						anchor: [0.5, 0.5],
 						anchorXUnits: 'fraction',
 						anchorYUnits: 'fraction',
-						src: 'WORext/WOR_innercircle.png', //needs path
+						src: 'images/WOR_innercircle.png', //needs path
 						scale: (0.5 * scale)
 					}),
 					text: new ol.style.Text({
@@ -350,7 +350,7 @@
 						anchor: [(0.52), (0.25)],
 						anchorXUnits: 'fraction',
 						anchorYUnits: 'fraction',
-						src: 'WORext/wind/mark005.png', //needs path and windstr to paint correct arrow
+						src: 'images/wind/mark005.png', //needs path and windstr to paint correct arrow
 						scale: (0.70 * scale)
 					}))
 				});
@@ -368,7 +368,7 @@
 					geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
 					name: 'WOR_wavemarker',
 					type: type,
-					src: 'WORext/WOR_backdropcircle.png',
+					src: 'images/WOR_backdropcircle.png',
 				});
 				iconFeature.setStyle(retWORMWaveStyle(scale, wavedir, wavestr)); //generated style
 				iconFeature.setId(type + 'WOR_wavemarker');
@@ -378,7 +378,7 @@
 					geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
 					name: 'WOR_currentmarker',
 					type: type,
-					src: 'WORext/WOR_innercircle.png',
+					src: 'images/WOR_innercircle.png',
 				});
 				iconFeature2.setStyle(retWORMCurrentStyle(scale, currdir, currstr));
 				iconFeature2.setId(type + 'WOR_currentmarker');
@@ -388,7 +388,7 @@
 					geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
 					name: 'WOR_windmarker',
 					type: type,
-					src: 'WORext/wind/mark005.png',
+					src: 'images/wind/mark005.png',
 				});
 				iconFeature3.setStyle(retWORMWindStyle(scale, winddir, windstr));
 				iconFeature3.setId(type + 'WOR_windmarker');
@@ -633,8 +633,6 @@
 				});
 
 			})
-			//Bip
-
 
 			// END USER INTERACTION - MOUSE & TOUCH
 			//**************************************************************
