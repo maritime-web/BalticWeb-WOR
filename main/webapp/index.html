@@ -21,12 +21,32 @@
 		.hide {
 			left: -20000px;
 		}
+		.ol-WeatherOnRouteMenu {
+			background-color: rgba(255, 255, 255, 0.7);
+			border-radius: 4px;
+			padding: 2px;
+			position: absolute;
+			width: 50%;
+			height: 10%;
+			top: 88%;
+			margin-left: auto;
+			margin-right: auto;
+			left:25%;
+			min-width: 300px;
+			min-height:40px;
+
+			/*@media only screen and (min-device-width : 320px) and (max-device-width : 480px) and (orientation:portrait) {
+				#content {
+					width: 100%;
+				}
+			}*/
+		}
 	</style>
 
 
 	<div id="map" class="map" style="z-index: 0;height:100%;width:100%;"></div>
 
-	<div id="logoDiv" class="" style="position:absolute;left:60px;top:15px;height:auto;width:20%;background:#ffffff;opacity:0.9;border-radius:7px;cursor:pointer;">
+	<div id="logoDiv" class="" style="position:absolute;left:60px;top:35px;height:auto;width:20%;background:#ffffff;opacity:0.9;border-radius:7px;cursor:pointer;">
 		<img src="images/DMA_logo_english.png" style="position:relative;left:5%;top:0px;width:90%;">
 		<div style="position:relative;left:5%;width:90%;height:auto;text-align:center;">
 			<br />
@@ -93,6 +113,42 @@
 			});
 
 			
+			window.onload = function () { // GEOLOCATION
+				var startPos;
+				var geoOptions = {
+					maximumAge: 5 * 60 * 1000,
+				}
+				var geoSuccess = function (position) {
+					startPos = position;
+					console.log("Current location:", startPos.coords.latitude, ",", startPos.coords.longitude);
+				};
+				var geoError = function (error) {
+					console.log('Error occurred. Error code: ' + error.code);
+					//   0: unknown error
+					//   1: permission denied
+					//   2: position unavailable (error response from location provider)
+					//   3: timed out
+				};
+				//navigator.geolocation.getCurrentPosition(geoSuccess, geoError, geoOptions);
+			};
+
+			//COMPASS
+			if (window.DeviceOrientationEvent) {
+				// Listen for the deviceorientation event and handle the raw data
+				window.addEventListener('deviceorientation', function (eventData) {
+					var compassdir;
+
+					if (event.webkitCompassHeading) {
+						// Apple works only with this, alpha doesn't work
+						compassdir = event.webkitCompassHeading;
+					}
+					else compassdir = event.alpha;
+					//console.log("Heading:", compassdir);
+				});
+
+			}
+
+
 			/*
 
 			Notes:
@@ -169,8 +225,37 @@
 			}
 
 
+			function getAngleFromPoints(cx, cy, ex, ey) { //returns the angle of a line fom 2 points xy - xy -> careful if using negative numbers. This is for the Baltic, which is in positive.
+				var dy = ey - cy;
+				var dx = ex - cx;
+				var theta = Math.atan2(dy, dx); // range (-PI, PI]
+				theta *= 180 / Math.PI; // rads to degs, range (-180, 180]
+				//if (theta < 0) theta = 360 + theta; // range [0, 360)
+				return theta;
+			}
+
+
+			var getDistanceFromCoords = function (lonlat1,lonlat2) { //returns distance in nautical miles between 2 points. lonlat1=[xx.xx,xx.xx]
+				var wgs84Sphere = new ol.Sphere(6378137);
+				var length;
+				lonlat1 = [13.711061468866212,55.072917200215191];
+				lonlat2 = [12.663240423944345,54.880610640482985];
+					var coordinates = []; coordinates.push(lonlat1); coordinates.push(lonlat2);
+					length = 0;
+					var sourceProj = map.getView().getProjection();
+					for (var i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+						var c1 = ol.proj.transform(coordinates[i], sourceProj, 'EPSG:3857');
+						var c2 = ol.proj.transform(coordinates[i + 1], sourceProj, 'EPSG:3857');
+						length += wgs84Sphere.haversineDistance(c1, c2);
+					}
+					var output = length * 0.539956803;
+						output = (Math.round(output / 1000 * 100) / 100)
+				return output;
+			};
+
 			//END MANIPULATION HANDLES -----------------------------------------------------------------------------
 
+			
 
 
 
@@ -178,13 +263,22 @@
 
 			var route = {
 				waypoints: [
-				{ id: 0, name: "pos1", legspeedmin: 12, legspeedmax: 13, lon: 13.711061468866212, lat: 55.07291720021519, winddirection: 190, windspeed: 24, airtemperature: 9, currentdirection: 155, currentspeed: 3.2 },
+				{ id: 0, name: "pos1", legspeedmin: 12, legspeedmax: 13, lon: 13.711061468866212, lat: 55.072917200215191, winddirection: 190, windspeed: 24, airtemperature: 9, currentdirection: 155, currentspeed: 3.2 },
 				{ id: 1, name: "pos2", legspeedmin: 11, legspeedmax: 12, lon: 12.663240423944345, lat: 54.880610640482985, winddirection: 120, windspeed: 28, airtemperature: 9, currentdirection: 140, currentspeed: 3.1 },
-				{ id: 2, name: "pos3", legspeedmin: 11, legspeedmax: 12, lon: 12.005518697218807, lat: 54.53590450023398, winddirection: 122, windspeed: 30, airtemperature: 9, currentdirection: 136, currentspeed: 3.4 },
-				{ id: 3, name: "pos4", legspeedmin: 10, legspeedmax: 11, lon: 11.93099777456585, lat: 54.569907839824936, winddirection: 145, windspeed: 30, airtemperature: 9, currentdirection: 130, currentspeed: 3.8 },
+				{ id: 2, name: "pos3", legspeedmin: 11, legspeedmax: 12, lon: 12.005518697218807, lat: 54.535904500233981, winddirection: 122, windspeed: 30, airtemperature: 9, currentdirection: 136, currentspeed: 3.4 },
+				{ id: 3, name: "pos4", legspeedmin: 10, legspeedmax: 11, lon: 11.930997774565851, lat: 54.569907839824936, winddirection: 145, windspeed: 30, airtemperature: 9, currentdirection: 130, currentspeed: 3.8 },
 				{ id: 4, name: "pos5", legspeedmin: 10, legspeedmax: 11, lon: 11.883514521671373, lat: 54.567784008455305, winddirection: 160, windspeed: 30, airtemperature: 9, currentdirection: 130, currentspeed: 3.6 }
+				],
+				sheduleElement: [
+				{ waypointId: 0, eta: "2016-11-09T00:00:01.000Z"},
+				{ waypointId: 0, eta: "2016-11-09T02:00:01.000Z"},
+				{ waypointId: 0, eta: "2016-11-09T04:00:01.000Z"},
+				{ waypointId: 0, eta: "2016-11-09T06:00:01.000Z"},
+				{ waypointId: 0, eta: "2016-11-09T08:00:01.000Z"},
 				]
+
 			}
+			var RouteDotRadius = 30; //radius of route markers, determines sie of all route dots. (startdotradius & enddotradius = radius * 1.5);
 			//END DEFINITIONS ------------------------------------------------------------------------------------------
 
 
@@ -209,7 +303,8 @@
 				lineString.transform('EPSG:4326', 'EPSG:3857');
 				var feature = new ol.Feature({ // create the feature
 					geometry: lineString,
-					//name: 'Route Leg',
+					name: 'RouteLeg',
+
 				});
 				var lineStyle = new ol.style.Style({
 					stroke: new ol.style.Stroke({
@@ -236,11 +331,11 @@
 				return [new ol.style.Style({
 					stroke: new ol.style.Stroke({
 						color: 'rgba(200,0,0,1)',
-						width: 10
+						width: 16
 					})
 				})];
 			};
-			var createRouteDots = function () {
+			var createRouteStartEndDots = function () {
 				var feature1 = new ol.Feature({ // create the feature
 					geometry: new ol.geom.Circle([route.waypoints[0].lon, route.waypoints[0].lat]).transform('EPSG:4326', 'EPSG:3857'),
 					name: 'RouteStartDot',
@@ -260,6 +355,50 @@
 				return [feature1, feature2];
 			}
 
+
+			RDstyle = function () { //route start end style - scales according to zoom level in USER INTERACTION section
+				return [new ol.style.Style({
+					stroke: new ol.style.Stroke({
+						color: 'rgba(200,0,0,1)',
+						width: 10
+					})
+				})];
+			};
+			RDAreastyle = function () { //route start end style - scales according to zoom level in USER INTERACTION section
+				return [new ol.style.Style({
+					stroke: new ol.style.Stroke({
+						color: 'rgba(200,0,0,0.2)',
+						width: RouteDotRadius
+					})
+				})];
+			};
+			var createRouteDots = function () {
+				var features = [];
+				if(route.waypoints.length>2){
+					for (var i = 1; i != route.waypoints.length - 1; i++) {
+						var feature1 = new ol.Feature({ // create the feature
+							geometry: new ol.geom.Circle([route.waypoints[i].lon, route.waypoints[i].lat]).transform('EPSG:4326', 'EPSG:3857'),
+							name: 'RouteDot',
+							routeDotNumber: i,
+							lon: route.waypoints[i].lon,
+							lat: route.waypoints[i].lat
+						});
+						var feature2 = new ol.Feature({ // create the feature
+							geometry: new ol.geom.Circle([route.waypoints[i].lon, route.waypoints[i].lat]).transform('EPSG:4326', 'EPSG:3857'),
+							name: 'RouteDotArea',
+							routeDotNumber: i,
+							lon: route.waypoints[i].lon,
+							lat: route.waypoints[i].lat
+						});
+
+						features.push(feature1)
+						features.push(feature2)
+					}
+					//feature1.setStyle(RSEstyle());
+					//feature2.setStyle(RSEstyle());
+				}
+				return features;
+			}
 
 
 
@@ -413,7 +552,7 @@
 				var pointStyle = new ol.style.Style({
 					stroke: new ol.style.Stroke({
 						color: 'rgba(255,0,0,0)',
-						width: 100
+						width: 200
 					})
 				});
 				var source = new ol.source.Vector({
@@ -432,14 +571,70 @@
 			//**************************************************************
 			//**************************************************************
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			CustomToolbarControl = function (opt_options) {
+				var options = opt_options || {};
+				var button1 = document.createElement('button');
+				button1.innerHTML = 'some button';
+				button1.id = 'routecontrols_button1';
+				var this_ = this;
+				var handleRotateNorth = function (e) {
+					this_.getMap().getView().setRotation(0);
+				};
+				button1.addEventListener('click', handleRotateNorth, false);
+				button1.addEventListener('touchstart', handleRotateNorth, false);
+				var element = document.createElement('div');
+				element.className = 'ol-unselectable ol-WeatherOnRouteMenu';
+				element.appendChild(button1);
+				ol.control.Control.call(this, {
+					element: element,
+					target: options.target
+				});
+			};
+			ol.inherits(CustomToolbarControl, ol.control.Control);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 			var routeLayer = generateRouteLayer();
 
-			var routeHandle = createRoute();
-			var routeDotsHandle = createRouteDots();
+			var routeHandle = createRoute(); //draws line
+			var routeDotsHandle = createRouteStartEndDots(); //start and end dots
+			var routeDotsHandle2 = createRouteDots(); //all dots along the line except start and end
 
 			var map = new ol.Map({
 				loadTilesWhileInteracting: true,
 				target: 'map',
+				controls: ol.control.defaults({
+					attributionOptions: /** @type {olx.control.AttributionOptions} */ ({
+						collapsible: false
+					})
+				}).extend([
+				new CustomToolbarControl()
+				]),
 				layers: [
 				new ol.layer.Tile({
 					source: new ol.source.OSM()
@@ -453,15 +648,16 @@
 
 			var source = routeLayer.getSource();
 			source.addFeatures(routeDotsHandle);
-			//source.addFeatures(generateWORM('_routemarker1', 'routemarker1', 13, 54));
+			source.addFeatures(routeDotsHandle2);
+				//source.addFeatures(generateWORM('_routemarker1', 'routemarker1', 13, 54));
 			//source.addFeatures(generateWORM('_routemarker2', 'routemarker2', 14, 54));
 			source.addFeatures(WORMarker);
 
 			//generateWORM('identifier', 'type', lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, wavestr));
 
-			source.addFeatures(generateWORM('_routeWORM1', 'routeWORM1', 11.85311453316363, 54.5174182081806, 0.9, 120, 20, 190, 2, 125, 1.5));
-			source.addFeatures(generateWORM('_routeWORM2', 'routeWORM2', 12.710055233576151, 54.826923606718935, 0.9, 125, 25, 200, 1, 130, 2));
-			source.addFeatures(generateWORM('_routeWORM3', 'routeWORM3', 13.68084906652246, 55.12163532513645, 0.9, 130, 30, 180, 3, 135, 2.5));
+			//source.addFeatures(generateWORM('_routeWORM1', 'routeWORM1', 11.85311453316363, 54.5174182081806, 0.9, 120, 20, 190, 2, 125, 1.5));
+			//source.addFeatures(generateWORM('_routeWORM2', 'routeWORM2', 12.710055233576151, 54.826923606718935, 0.9, 125, 25, 200, 1, 130, 2));
+			//source.addFeatures(generateWORM('_routeWORM3', 'routeWORM3', 13.68084906652246, 55.12163532513645, 0.9, 130, 30, 180, 3, 135, 2.5));
 
 
 			//**************************************************************
@@ -514,6 +710,8 @@
 
 
 			map.on('click', function (evt) {
+				document.getElementById("routecontrols_button1").innerHTML = "YOLO";
+
 				var lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
 				var lon = lonlat[0];
 				var lat = lonlat[1];
@@ -523,6 +721,9 @@
 				var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
 					return feature;
 				});
+				var name, type;  
+				if (feature && feature.get('name')) name = feature.get("name");
+				if (feature && feature.get('type')) type = feature.get("type");
 
 				//user clicks on routeWORM
 				if (feature && feature.get('type')) {
@@ -530,6 +731,7 @@
 						$('#containerDiv').removeClass('hide');
 					}
 				}
+				if (name == "RouteLeg") console.log("routeleg:", name)//feature.setStyle(RSEstyle());
 
 				//debug
 				//console.log("Clicked on: " + feature.get('name') + " - Coords:" + feature.get('lon') + "," + feature.get('lat'));
@@ -605,8 +807,29 @@
 										color: 'rgba(255, 0, 255, 0.1)'
 									})
 								});
+
+
+								//Detect if features overlap. Use the getextent to see if they overlap. Make array starting with routestartdot and remove all routedots which overlap with the previous dot (start or routedot).
+								if (name && name != '' && name == "RouteDot") {
+									var pixel
+									var coordinate = [];
+									coordinate.push(feature.get("lon"));
+									coordinate.push(feature.get("lat"));
+									pixel = map.getPixelFromCoordinate(coordinate);
+									//console.log("feature:", name, " is at pixel:", pixel);
+
+									//console.log("extent:", feature.getGeometry().getExtent());
+									var routeDotNumber = feature.get("routeDotNumber");
+									//console.log("ROuteDot:", routeDotNumber);
+
+								}
+
+								//console.log("Length of startdot to first routedot in metres:", getDistanceFromCoords())
+
 								//Manipulate features as needed
 								if (name && name != '') {
+									if (name == "RouteDot") feature.setStyle(RDstyle());
+									if (name == "RouteDotArea") feature.setStyle(RDAreastyle());
 									if (name == "RouteStartDot") feature.setStyle(RSEstyle());
 									if (name == "RouteEndDot") feature.setStyle(RSEstyle());
 								}
