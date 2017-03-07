@@ -155,3 +155,52 @@
 			}
 			console.log(weatherPattern[0].length)
 		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		Stuff for detecting zooming and pinching - didnt fix the browser issues with zooming. Uses hammer.js
+<script src="scripts/hammer-time.min.js"></script>
+
+
+
+			//$('#containerDiv').on('touchstart', function (e) {
+			//	console.log(e)
+			//	try{
+			//		if (!$('#containerDiv').hasClass("hide") && e.originalEvent.touches.length > 1) {
+			//			console.log(e.originalEvent.touches.length)
+			//			e.stopPropagation();
+			//			setTimeout(function(){ $('#containerDiv').addClass('hide'); }, 1000);
+			//		}
+			//	} catch (touchlengthexception) {
+			//		console.log("toucherror");
+			//	}
+			//});
+
+
+			////Disable pinch and rotate gestures while displaying popup messages - so user does not overzoom and cannot return to map
+			//var mc = new Hammer.Manager(document.getElementById('containerDiv'));
+			//var pinch = new Hammer.Pinch();
+			//var rotate = new Hammer.Rotate();
+			//pinch.recognizeWith(rotate);
+			//mc.add([pinch, rotate]);
+			//mc.on("pinch rotate", function (ev) {
+			//	$('#containerDiv').removeClass('hide');
+
+			//	/*Do nothing while displaying popup overlay*/
+			//});

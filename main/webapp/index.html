@@ -6,53 +6,24 @@
 	<!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
 	<script src="scripts/ol.js"></script>
 	<script src="scripts/jquery.min.js"></script> <!-- still used in the menu dropdowns -->
-	<link rel="stylesheet" href="css/bootstrap.min.css">
+	<script src="scripts/draggabilly.pkgd.min.js"></script>
+	<link rel="stylesheet" href="css/bootstrap.min.css"><!-- For dragging - has an angular directive at:https://github.com/Jimdo/angular-draggabilly -->
+	<link rel="stylesheet" href="css/WeatherOnRoute.css" />
+	<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
+	<meta name="msapplication-tap-highlight" content="no" />
 
 </head>
 <body>
 
-	<style type="text/css">
-		html, body, #basicMap {
-			width: 100%;
-			height: 100%;
-			margin: 0;
-		}
-
-		.hide {
-			left: -20000px;
-		}
-		.ol-WeatherOnRouteMenu {
-			background-color: rgba(255, 255, 255, 0.7);
-			border-radius: 4px;
-			padding: 2px;
-			position: absolute;
-			width: 50%;
-			height: 10%;
-			top: 88%;
-			margin-left: auto;
-			margin-right: auto;
-			left:25%;
-			min-width: 300px;
-			min-height:40px;
-
-			/*@media only screen and (min-device-width : 320px) and (max-device-width : 480px) and (orientation:portrait) {
-				#content {
-					width: 100%;
-				}
-			}*/
-		}
-	</style>
 
 
 	<div id="map" class="map" style="z-index: 0;height:100%;width:100%;"></div>
 
-	<div id="logoDiv" class="" style="position:absolute;left:60px;top:35px;height:auto;width:20%;background:#ffffff;opacity:0.9;border-radius:7px;cursor:pointer;">
-		<img src="images/DMA_logo_english.png" style="position:relative;left:5%;top:0px;width:90%;">
-		<div style="position:relative;left:5%;width:90%;height:auto;text-align:center;">
+	<div id="logoDiv" class="" style="position:absolute;left:60px;top:9px;height:auto;width:20%;min-width:240px;background:#ffffff;opacity:0.9;border-radius:7px;cursor:pointer;">
+		<img src="images/DMA_logo_english.png" style="position:relative;left:5%;top:5px;width:90%;">
+		<div style="position:relative;top:-10px;left:5%;width:90%;height:auto;text-align:center;">
 			<br />
-			Weather On Route Marker
-			<br />
-			<span style="color:#bb0000;font-size:1.3em;"> - prototype - </span>
+			Weather On Route prototype v.0.2
 		</div>
 	</div>
 
@@ -84,7 +55,7 @@
 						Derivation of symbolism:
 						<ul>
 							<li>Wave symbol: high contrast triangles on the outside circle - "waves are <u><b>on</b></u> the water".</li>
-							<li>Current symbol: Solid triangle inside the cricle - "Current is <u><b>under</b></u> the water".</li>
+							<li>Current symbol: Solid triangle inside the circle - "Current is <u><b>under</b></u> the water".</li>
 							<li>Wind arrow symbol: - the reference to integrate the wave and current symbols, without changing the existing standard.</li>
 						</ul>
 						Development notes:
@@ -103,6 +74,9 @@
 				</div>
 			</div>
 		</div>
+
+
+
 		<script>
 
 			$('#containerDiv').on('click', function (evt) {
@@ -116,7 +90,7 @@
 			window.onload = function () { // GEOLOCATION
 				var startPos;
 				var geoOptions = {
-					maximumAge: 5 * 60 * 1000,
+					maximumAge: 5 * 60 * 1000, //timeout for request return
 				}
 				var geoSuccess = function (position) {
 					startPos = position;
@@ -161,8 +135,9 @@
 			CODE SECTION OVERVIEW:
 			Manipulation handles
 				math
-
+				 
 			Definitions
+				global vars
 				mock RTZ object
 				Weather On Route Marker (WORM) generator
 
@@ -171,11 +146,13 @@
 				Weather On Route Marker (WORM)
 
 			Map init
+				has 2 layers
 
 			User interaction
 				mousemove
 				mouseover
 				mouseclick
+				map zoom trigger
 
 
 			TODO:
@@ -235,11 +212,9 @@
 			}
 
 
-			var getDistanceFromCoords = function (lonlat1,lonlat2) { //returns distance in nautical miles between 2 points. lonlat1=[xx.xx,xx.xx]
-				var wgs84Sphere = new ol.Sphere(6378137);
+			var getDistanceFromCoords = function (lonlat1,lonlat2) { //returns distance in nautical miles between 2 points. format: lonlatX=[xx.xx,xx.xx]
+				var wgs84Sphere = new ol.Sphere(6378137); //define spherical math layout
 				var length;
-				lonlat1 = [13.711061468866212,55.072917200215191];
-				lonlat2 = [12.663240423944345,54.880610640482985];
 					var coordinates = []; coordinates.push(lonlat1); coordinates.push(lonlat2);
 					length = 0;
 					var sourceProj = map.getView().getProjection();
@@ -278,7 +253,11 @@
 				]
 
 			}
-			var RouteDotRadius = 30; //radius of route markers, determines sie of all route dots. (startdotradius & enddotradius = radius * 1.5);
+			//var RouteDotRadius = 20; //radius of route markers, determines sie of all route dots.
+			var WOR = {};
+			WOR.RouteDotRadius = 20;
+			WOR.windowWidthAtInit = $(window).width();
+			WOR.windowWidthAfterResize = 0;
 			//END DEFINITIONS ------------------------------------------------------------------------------------------
 
 
@@ -327,11 +306,19 @@
 
 
 			//Route start & end points - names: RouteStartDot, RouteEndDot
-			RSEstyle = function () { //route start end style - scales according to zoom level in USER INTERACTION section
+			RSstyle = function () { //route start end style - scales according to zoom level in USER INTERACTION section
+				return [new ol.style.Style({
+					stroke: new ol.style.Stroke({
+						color: 'rgba(0,200,0,1)',
+						width: WOR.RouteDotRadius
+					})
+				})];
+			};
+			REstyle = function () { //route start end style - scales according to zoom level in USER INTERACTION section
 				return [new ol.style.Style({
 					stroke: new ol.style.Stroke({
 						color: 'rgba(200,0,0,1)',
-						width: 16
+						width: WOR.RouteDotRadius
 					})
 				})];
 			};
@@ -350,8 +337,8 @@
 				});
 				feature1.setId('RouteStartDot');
 				feature2.setId('RouteEndDot');
-				feature1.setStyle(RSEstyle());
-				feature2.setStyle(RSEstyle());
+				feature1.setStyle(RSstyle());
+				feature2.setStyle(REstyle());
 				return [feature1, feature2];
 			}
 
@@ -359,8 +346,8 @@
 			RDstyle = function () { //route start end style - scales according to zoom level in USER INTERACTION section
 				return [new ol.style.Style({
 					stroke: new ol.style.Stroke({
-						color: 'rgba(200,0,0,1)',
-						width: 10
+						color: 'rgba(0,0,0,0.5)',
+						width: 6
 					})
 				})];
 			};
@@ -368,7 +355,7 @@
 				return [new ol.style.Style({
 					stroke: new ol.style.Stroke({
 						color: 'rgba(200,0,0,0.2)',
-						width: RouteDotRadius
+						width: WOR.RouteDotRadius
 					})
 				})];
 			};
@@ -394,8 +381,6 @@
 						features.push(feature1)
 						features.push(feature2)
 					}
-					//feature1.setStyle(RSEstyle());
-					//feature2.setStyle(RSEstyle());
 				}
 				return features;
 			}
@@ -541,9 +526,6 @@
 			//END WEATHER ON ROUTE MARKER (WORM) *****************************************************
 
 
-
-
-
 			var generateRouteLayer = function () {
 				var point = new ol.geom.Point([0, 0]).transform('EPSG:4326', 'EPSG:3857'); //transform to EPSG:3857
 				var feature = new ol.Feature({ // create the feature
@@ -567,56 +549,209 @@
 			}
 
 
-			// MAP INIT
-			//**************************************************************
-			//**************************************************************
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-			CustomToolbarControl = function (opt_options) {
+			//move this before release - also cleanup and prepare content plz.
+			WORToolbarControl = function (opt_options) {
 				var options = opt_options || {};
-				var button1 = document.createElement('button');
-				button1.innerHTML = 'some button';
+
+				//menu button
+				var button1 = document.createElement('button'); //TODO - put this in a container div with float right and auto resize the button to scale right
+				button1.innerHTML = '&#9776;';
 				button1.id = 'routecontrols_button1';
+				button1.className = 'ol-WORBarOptionsButton';
+
 				var this_ = this;
-				var handleRotateNorth = function (e) {
-					this_.getMap().getView().setRotation(0);
+				var handleRotateNorth = function (e) { //TODO - change name of this function
+					renderWORControls("right");
+//					alert("swag");
+
 				};
 				button1.addEventListener('click', handleRotateNorth, false);
 				button1.addEventListener('touchstart', handleRotateNorth, false);
+
+				//route container
+				var routecontainer = document.createElement('div');
+				routecontainer.id = 'WORroutecontainer';
+				routecontainer.className = 'ol-unselectable ol-WORBarRouteMainContainer';
+
+				//WOR bar container
 				var element = document.createElement('div');
-				element.className = 'ol-unselectable ol-WeatherOnRouteMenu';
+				element.className = 'ol-unselectable ol-WORBarMenuContainer';
+
+				//Appending to WOR bar
 				element.appendChild(button1);
+				element.appendChild(routecontainer);
+
 				ol.control.Control.call(this, {
 					element: element,
 					target: options.target
 				});
 			};
-			ol.inherits(CustomToolbarControl, ol.control.Control);
+			ol.inherits(WORToolbarControl, ol.control.Control);
+
+
+
+			//generates and appends the actual route item in the WOR bar.
+			//Inits and sets dragging.
+			//Inits and sets resize control of menu and dragicon
+			//points is array, direction is 'left'(to right) or 'right'(to left), pending on course direction. Value is in nautical miles.
+			//startpoint is green, endpoint is red, all others are black dots with grey ring
+			WORRouteControl = function (points, direction) {
+				var totallength = 0;
+				var legRatioArr = [];
+				for (var i = 0; i != points.length; i++) { totallength += points[i]; } //total length - use as reference for percentage of totallength
+				var compoundOfRatio = 0; //startpos from left in pércent
+				var decompoundOfRatio = 100; //startpos from right in percent
+				var height = 12;
+				var html = "";
+				//add the lines
+
+
+				for (var i = 0; i != points.length; i++) {
+					var tmpcolor = "rgba(0,200,0,1)"; //Todo: change line colour according to weather warnings of those legs.
+					legRatioArr[i] = Math.round(((100 / totallength) * points[i])); //calc ratios of leg distances to place in dots UI
+					var left = 0;
+					direction == 'right' ? left = decompoundOfRatio - legRatioArr[i] : left = compoundOfRatio
+					//First line in route
+					if (i == 0) {
+						html += "<div class='roundedbar' style='position:absolute;width:" + legRatioArr[i] + "%;top:30%;left:" + left + "%;height:" + (height * 0.4) + "px;background:" + tmpcolor + "'>&nbsp;</div>"
+					} else {
+						html += "<div class='roundedbar' style='position:absolute;width:" + legRatioArr[i] + "%;top:30%;left:" + left + "%;height:" + (height * 0.4) + "px;background:" + tmpcolor + "'>&nbsp;</div>"
+					}
+						decompoundOfRatio -= legRatioArr[i];
+						compoundOfRatio += legRatioArr[i]; //update ratio for the next leg starting point in % of available space.
+
+				}
+
+				compoundOfRatio = 0; //reset startpos
+				decompoundOfRatio = 100; //reset endpos
+				var startdotleft = compoundOfRatio;
+				if (direction == 'right') {
+					startdotleft = decompoundOfRatio;
+				}
+
+				var htmlstartdot = "<div id='WORRouteStartDot' class='round' style=\"position:absolute;top:" + (6 - (height * 0.5)) + "px;left:" + startdotleft + "%;width:" + height + "px;height:" + height + "px;border:1px solid rgba(100,100,100,1);border-radius:" + (height * 0.5) + "px;background:rgba(0,230,0,1)\">&nbsp;</div>";
+				for (var i = 0; i != points.length; i++) {
+					var left = 0;
+					if (direction == 'right') {
+						left = decompoundOfRatio - legRatioArr[i]
+						if (i == points.length - 1) { //overrule if is enddot
+							left = 0;
+						}
+					} else {
+						left = (legRatioArr[i] + compoundOfRatio)
+					}
+					//add the dots
+					if (i != points.length - 1) {
+						html += "<div class='round' id='WORRouteDot_" + i + "' style=\"position:absolute;top:20%;left:" + left + "%;width:" + (height * 0.6) + "px;height:" + (height * 0.6) + "px;border-radius:" + (height * 0.5) + "px;background:rgba(100,100,100,1)\">&nbsp;</div>"
+					} else {
+						html += "<div id='WORRouteEndDot' class='round' style=\"position:absolute;top:0%;left:" + left + "%;width:" + height + "px;height:" + height + "px;border:1px solid rgba(100,100,100,1);border-radius:" + (height * 0.5) + "px;background:rgba(230,0,0,1\">&nbsp;</div>"
+					}
+					decompoundOfRatio -= legRatioArr[i];
+					compoundOfRatio += legRatioArr[i]; //update ratio for the next leg starting point in % of available space.
 
 
 
 
+				}
+				html += htmlstartdot; //force the startdot as first to ensure it is on top
+				//console.log(legRatioArr);
+
+				//container
+				var element = document.createElement('div');
+				element.innerHTML = html;
+				element.className = 'ol-unselectable ol-WORBarRoute';
+				element.id = "WORBarRouteMainContainer";
+
+				//var shipElementCircle = document.createElement('div');
+				//shipElementCircle.id = "WORBarShipIconCircle";
+				//shipElementCircle.className = 'ol-unselectable ol-WORBarShipIconCircle ';
+				//shipElementCircle.innerHTML = "&nbsp;"; //cant be empty
+
+				var shipElement = document.createElement('div');
+				shipElement.id = "WORBarShipIconContainer";
+				var directionclass = "";
+				if (direction == 'right') {//flip the ship icon if reversed direction
+					directionclass = 'ol-WORBarShipIconRight';
+				} else {
+					directionclass = 'ol-WORBarShipIconLeft';
+				}
+				shipElement.className = 'ol-unselectable ol-WORBarShipIconContainer WORdraggable ' + directionclass;
+				alert("make this thing round with a border, then save the shipicon location before move and restore after move.");
+				shipElement.innerHTML = "<div class='ol-WORBarShipIconCircle'>&nbsp;</div>"; //cant be empty
 
 
 
 
+				//Appending to WOR bar
+				element.appendChild(shipElement); 
+				$('#WORroutecontainer').append($(element));
+
+				var tmpoffset = $('#WORRouteStartDot').offset();
+				$(".ol-WORBarShipIconContainer").offset({ top: (tmpoffset.top - 20), left: (tmpoffset.left - 30 + 6) })
+				var $draggable = $('.draggable').draggabilly({ /*init dragging There is an angular directive for this: https://github.com/Jimdo/angular-draggabilly */ });
+				var draggable = $('.WORdraggable').draggabilly({
+					axis: 'x',
+					grid: [3, 3],
+				});
+				WORShipIconDragContain = function () {//prevent shipicon to move beyond startdot/enddot
+					var tmpstartoff = $('#WORRouteStartDot').offset();
+					var tmpendoff = $('#WORRouteEndDot').offset();
+					var tmpshipiconoff = $('.ol-WORBarShipIconContainer').offset();
+
+					if (tmpstartoff.left > tmpendoff.left) { //right to left 
+						if ((tmpshipiconoff.left + 30 - 6) > tmpstartoff.left) {
+							$(".ol-WORBarShipIconContainer").offset({ top: (tmpstartoff.top - 20), left: (tmpstartoff.left - 30 + 6) })
+						}else if((tmpshipiconoff.left + 30 - 6) < tmpendoff.left) {
+							$(".ol-WORBarShipIconContainer").offset({ top: (tmpendoff.top - 20), left: (tmpendoff.left - 30 + 6) })
+						}
+					} else { //left to right
+						if ((tmpshipiconoff.left + 30 - 6) < tmpstartoff.left) {
+							$(".ol-WORBarShipIconContainer").offset({ top: (tmpstartoff.top - 20), left: (tmpstartoff.left - 30 + 6) })
+						}else if((tmpshipiconoff.left + 30 - 6) > tmpendoff.left) {
+							$(".ol-WORBarShipIconContainer").offset({ top: (tmpendoff.top - 20), left: (tmpendoff.left - 30 + 6) })
+						}
+					}
+				}
+				draggable.on('dragEnd', function (event, pointer) {
+					WORShipIconDragContain();
+				});
+				draggable.on('dragMove', function (event, pointer, moveVector) {
+					WORShipIconDragContain();
+				})
+				WOR.startDotOffset = $('#WORRouteStartDot').offset();
+				WOR.endDotOffset = $('#WORRouteEndDot').offset();
+
+				WORResizeEventFunction = function () {
+					//scaling window moves the absolute pos of the shipicon. Calc relative distance of entire routebar, then place shipicon at correct relative position at every move.
+					var tmpPreviousWindowSize = 0;
+					WOR.startDotOffset = $('#WORRouteStartDot').offset();
+					WOR.endDotOffset = $('#WORRouteEndDot').offset();
+					//Keeps shipicon from passing left side container
+					var tmpshipiconoffset = $('.ol-WORBarShipIconContainer').offset();
+					if ((tmpshipiconoffset.left + 30 - 6) < WOR.startDotOffset.left) {
+						$(".ol-WORBarShipIconContainer").offset({ top: (WOR.startDotOffset.top - 20), left: (WOR.startDotOffset.left - 30 + 6) })
+					}
+					if ((tmpshipiconoffset.left + 30 - 6) > WOR.endDotOffset.left) {
+						$(".ol-WORBarShipIconContainer").offset({ top: (WOR.endDotOffset.top - 20), left: (WOR.endDotOffset.left - 30 + 6) })
+					}
+
+					//console.log($(window).width());
+
+				}
+				var WORWindowResizeEventEnd;
+				$(window).resize(function () {
+					WORResizeEventFunction();
+				});
 
 
+			}
 
 
+			// MAP INIT
+			//**************************************************************
+			//**************************************************************
 
 
 			var routeLayer = generateRouteLayer();
@@ -633,7 +768,7 @@
 						collapsible: false
 					})
 				}).extend([
-				new CustomToolbarControl()
+				new WORToolbarControl()
 				]),
 				layers: [
 				new ol.layer.Tile({
@@ -649,9 +784,43 @@
 			var source = routeLayer.getSource();
 			source.addFeatures(routeDotsHandle);
 			source.addFeatures(routeDotsHandle2);
-				//source.addFeatures(generateWORM('_routemarker1', 'routemarker1', 13, 54));
-			//source.addFeatures(generateWORM('_routemarker2', 'routemarker2', 14, 54));
 			source.addFeatures(WORMarker);
+
+
+			//When map is, do math based on the route - this makes the math independent of the RTZ.
+
+			renderWORControls = function (direction) {
+				//Get total length of the route and each leg length in nautical miles
+				$('#WORBarRouteMainContainer').remove();
+				if (!direction) direction = "left";
+				var routetotallength = 0;
+				var routelengtharray = [];
+				for (var i = 0; i != route.waypoints.length - 1; i++) {
+					var lonlat1 = [];
+					lonlat1.push(route.waypoints[i].lon);
+					lonlat1.push(route.waypoints[i].lat);
+					var lonlat2 = [];
+					lonlat2.push(route.waypoints[i + 1].lon);
+					lonlat2.push(route.waypoints[i + 1].lat);
+					routelengtharray[i] = getDistanceFromCoords(lonlat1, lonlat2)
+					routetotallength = routetotallength + routelengtharray[i];
+				}
+				//console.log("Total route length:", routetotallength, "nautical miles");
+
+				//Draw and append the route to the WORbar
+				var WORShipIconAbsPos;
+				$(document).ready(function () {
+					WORRouteControl(routelengtharray, direction);
+					WORShipIconAbsPos = $('.ol-WORBarShipIconContainer').offset();
+				});
+			}
+
+			map.once('postrender', function (event) {
+				renderWORControls();
+			});
+
+
+
 
 			//generateWORM('identifier', 'type', lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, wavestr));
 
@@ -710,8 +879,6 @@
 
 
 			map.on('click', function (evt) {
-				document.getElementById("routecontrols_button1").innerHTML = "YOLO";
-
 				var lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
 				var lon = lonlat[0];
 				var lat = lonlat[1];
@@ -786,7 +953,10 @@
 			//ZOOM DETECT - rescale items as needed
 			map.on("moveend", function (e) {
 				var zoomlvl = parseInt(map.getView().getZoom());
-				console.log("Zoom level:" + zoomlvl);
+				var startDotLeft = 0;
+				var endDotLeft = 0;
+				//console.log("Zoom level:" + zoomlvl);
+
 
 				//loop through all layers to rescale route items so they dont fill the entire area
 				map.getLayers().forEach(function (layer, i) {
@@ -816,7 +986,6 @@
 									coordinate.push(feature.get("lon"));
 									coordinate.push(feature.get("lat"));
 									pixel = map.getPixelFromCoordinate(coordinate);
-									//console.log("feature:", name, " is at pixel:", pixel);
 
 									//console.log("extent:", feature.getGeometry().getExtent());
 									var routeDotNumber = feature.get("routeDotNumber");
@@ -830,8 +999,46 @@
 								if (name && name != '') {
 									if (name == "RouteDot") feature.setStyle(RDstyle());
 									if (name == "RouteDotArea") feature.setStyle(RDAreastyle());
-									if (name == "RouteStartDot") feature.setStyle(RSEstyle());
-									if (name == "RouteEndDot") feature.setStyle(RSEstyle());
+									if (name == "RouteStartDot") {
+										feature.setStyle(RSstyle());
+										//Detect and swap direction of shipicon if start and end have been reversed by rotating map.
+										var coodinate = [];
+										//coordinate.push(feature.get("lon"));
+										//coordinate.push(feature.get("lat"));
+										//var pixel = map.getPixelFromCoordinate([54,13]);
+										//console.log("Pixel:",pixel);
+
+										var pixel
+										var coordinate = [];
+										coordinate.push(feature.get("lon"));
+										coordinate.push(feature.get("lat"));
+										pixel = map.getPixelFromCoordinate(coordinate);
+										startDotLeft = pixel[0];
+										//console.log("startdotleft:", startDotLeft);
+									}
+									if (name == "RouteEndDot") {
+										feature.setStyle(REstyle());
+										var pixel
+										var coordinate = [];
+										coordinate.push(feature.get("lon"));
+										coordinate.push(feature.get("lat"));
+										pixel = map.getPixelFromCoordinate(coordinate);
+										endDotLeft = pixel[0];
+										//console.log("enddotleft:", endDotLeft);
+
+
+									}
+									if (name == "RouteStartDot") { //Test if is in view
+										//var extent = routeLayer.getSource().getExtent();
+										var extent = map.getView().calculateExtent(map.getSize());
+										extent = ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326');
+										var featureextent = feature.getGeometry().getExtent();
+										featureextent = ol.proj.transformExtent(featureextent, 'EPSG:3857', 'EPSG:4326')
+										//console.log("extent:", extent);
+										//console.log("feature extent:", feature.getGeometry().getExtent());
+										//console.log(name, "in view:", ol.extent.containsExtent(extent, featureextent))
+									}
+
 								}
 								if (type && type != '') {
 
@@ -852,8 +1059,15 @@
 								}
 							})
 						}
+						//console.log((endDotLeft - startDotLeft) * 100000);
+						if ((endDotLeft - startDotLeft) * 100000 > 0) {
+							renderWORControls("left");
+						} else {
+							renderWORControls("right");
+						}
 					}
 				});
+
 
 			})
 

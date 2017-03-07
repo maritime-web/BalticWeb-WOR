@@ -1,0 +1,145 @@
+﻿html, body, #basicMap {
+	width: 100%;
+	height: 100%;
+	margin: 0;
+}
+
+.hide {
+	left: -20000px;
+}
+
+
+
+.ol-WORBarContainer {
+	/*Weather On Route*/
+	
+	border-radius: 4px;
+	padding: 2px;
+	position: absolute;
+	width: 50%;
+	height: 10%;
+	top: 88%;
+	margin-left: auto;
+	margin-right: auto;
+	left: 25%;
+	min-width: 300px;
+	min-height: 40px;
+	/*@media only screen and (min-device-width : 320px) and (max-device-width : 480px) and (orientation:portrait) {
+				#content {
+					width: 100%;
+				}
+			}*/
+}
+
+.ol-WORBarMenuContainer {
+background-color: rgba(255, 255, 255, 0.7);	border-radius: 4px;
+	padding: 2px;
+	position: absolute;
+	width: 80%;
+	height: 10%;
+	top: 88%;
+	margin-left: auto;
+	margin-right: auto;
+	left: 10%;
+	min-width: 300px;
+	min-height: 40px;
+	border:1px solid rgba(100,100,100,1);
+}
+
+.ol-WORBarRouteMainContainer {
+	position: absolute;
+	left: 0px;
+	width: 90%;
+	height: 100%;
+	top: 0px;
+	margin: 0;
+	/*background-color: rgba(255, 0, 0, 0.3);*/
+}
+
+.ol-WORBarRouteContainer {
+	position: absolute;
+	left: 0px;
+	width: 100%;
+	height: 100%;
+	top: 0px;
+	margin: 0;
+	background-color: rgba(20, 20, 20, 0.3);
+}
+
+.ol-WORBarRoute {
+	position: absolute;
+	left: 5%;
+	width: 90%;
+	height: 12px;
+	top: 10px;
+	margin: 0;
+	/*background-color: rgba(255, 0, 0, 0.3);*/
+}
+
+.ol-WORBarOptionsButton {
+	position: relative;
+	float: right;
+	margin-right:8px;
+	min-width: 10px;
+	max-width:8%;
+	min-height:20px;
+	max-height:90%;
+	top: 20%;
+}
+.ol-WORBarShipIconContainer {
+	position: absolute;
+	left: 0%;
+	top: -20px;
+	width:60px;
+	height:30px;
+	/*background-image: url(../images/vessel_sideview_left_freighter_PosMarker.png);
+	background-size: cover;
+	background-repeat: no-repeat;
+	background-position: center center;
+	background-size: contain;*/
+	margin: 0;
+	/*background-color: rgba(20, 20, 20, 0.3);*/
+}
+.ol-WORBarShipIconLeft {
+	background-image: url(../images/vessel_sideview_left_freighter_PosMarker.png);
+	background-size: cover;
+	background-repeat: no-repeat;
+	background-position: center center;
+	background-size: contain;
+}
+.ol-WORBarShipIconRight {
+	background-image: url(../images/vessel_sideview_right_freighter_PosMarker.png);
+	background-size: cover;
+	background-repeat: no-repeat;
+	background-position: center center;
+	background-size: contain;
+}
+.ol-WORBarShipIconCircle {
+	position: absolute;
+	left: 0%;
+	top: 0px;
+	width:150%;
+	height:150%;
+	margin: 0;
+	border:1px solid rgba(100,100,100,1);
+	background-color: rgba(20, 20, 20, 0.3);
+}
+
+
+/*ol-WORBarOptionsButton:after {
+			content:"&#9776;";
+		}*/
+.round {
+	-moz-border-radius: 50%;
+	-webkit-border-radius: 50%;
+	border-radius: 50%;
+}
+.roundedbar {
+	border-top-left-radius: 4px;
+	border-bottom-left-radius: 4px;
+	border-top-right-radius: 4px;
+	border-bottom-right-radius: 4px;
+	
+
+
+}
