@@ -116,13 +116,13 @@ background-color: rgba(255, 255, 255, 0.7);	border-radius: 4px;
 }
 .ol-WORBarShipIconCircle {
 	position: absolute;
-	left: 0%;
-	top: 0px;
-	width:150%;
-	height:150%;
+	left: -10px;
+	top: -20px;
+	width:80px;
+	height:80px;
 	margin: 0;
 	border:1px solid rgba(100,100,100,1);
-	background-color: rgba(20, 20, 20, 0.3);
+	background-color: rgba(20, 20, 20, 0.1);
 }
 
 
