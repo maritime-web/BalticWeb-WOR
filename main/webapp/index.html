@@ -70,9 +70,10 @@
 					Version 0.3 notes:
 					<ul>
 						<li>Ship icon added to map.</li>
-						<li>Control for linking bar ship and map ship added. - removed again.</li>
 						<li>Route direction on map (E/W) changes bar direction accordingly on control bar, as left/right.</li>
 						<li>Added map ship icon heading compass</li>
+						<li>Weather service communcation added</li>
+						<li></li>
 						<li></li>
 					</ul>
 
@@ -149,6 +150,7 @@
 		Temperatures are always Celcius
 		Current speeds are always Knots - Current direction is in degrees
 		Legspeeds are in knots
+		"Actual" means "this entity, now". A ship with a weather reading at its current time would be designated with "actual", so no misunderstanding can arise from a time projected location change.
 
 
 		CODE SECTION OVERVIEW:
@@ -198,6 +200,14 @@
 
 		//MANIPULATION HANDLES -----------------------------------------------------------------------------
 		// convert degrees to radians
+
+
+		var useGPS = true;
+		var WeatherServiceRequestURL = "";
+		var GPSLocation = [55.072917200215191, 13.711061468866212] //has latlon of current position. (Timer constantly updating GPS is required)
+		var mapRenderComplete = false;
+
+
 		function degToRad(deg) {
 			return deg * Math.PI * 2 / 360;
 		}
@@ -247,6 +257,70 @@
 			return output;
 		};
 
+		//ENcode/Decode is used for comm with DMI for weather data - expects doublequotes
+		function URLencode(data) {
+			data = data.replace(/'/g, '"');
+			return encodeURIComponent(data)//.replace(/'/g, "%27").replace(/"/g, "%22");
+		}
+		function URLdecode(data) {
+			return decodeURIComponent(data.replace(/\+/g, " "));
+		}
+
+		//Frontend cleanup until backend is made
+		weatherDataCleaner = function (data, GPSLocation, weathertype) { //type: point, leg, area
+
+			console.log("Weather Service returned:\n", data, "- \n", weathertype);
+			route.weatherdata.weatherShipActual = "";
+			var wid = Math.round(data.metocForecast.forecasts[0]["wind-dir"].forecast * 10) / 10;
+			var wis = Math.round(data.metocForecast.forecasts[0]["wind-speed"].forecast * 10) / 10;
+			var wah = Math.round(data.metocForecast.forecasts[0]["wave-height"].forecast * 10) / 10;
+			var wad = Math.round(data.metocForecast.forecasts[0]["wave-dir"].forecast * 10) / 10;
+			var cud = Math.round(data.metocForecast.forecasts[0]["current-dir"].forecast * 10) / 10;
+			var cus = Math.round(data.metocForecast.forecasts[0]["current-speed"].forecast * 10) / 10;
+
+
+			//timer waiting to load featers until render is completed - in case of slow map.
+			function renderComplete() {
+				console.log("timer cycle");
+				if (mapRenderComplete) {
+					clearInterval(waitForRenderCompleteTimer);
+					//(identifier, type, lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, wavestr)
+					mapSource.addFeatures(generateVesselWORM('yolo', 'bob', GPSLocation[1], GPSLocation[0], 1.65, wid, wis,cud,cus,wad,wah));
+				}
+			}
+			var waitForRenderCompleteTimer = setInterval(function () { renderComplete() }, 100);
+
+			
+
+		}
+
+		//Generates an URL to request weather data from provider
+		generateWeatherRequestURL = function (type, coordinate, projectedtime) {
+			var URI = "{'mssi': 999999999, 'datatypes': ['sealevel', 'current', 'wave', 'wind', 'density'], 'dt': 15, 'waypoints': [{ 'eta': '";
+			var now = new Date(), now2 = new Date();
+			//now.setTime(now.getTime() + (1000 * 60 * 60) * (2));
+			now2.setTime(now2.getTime() + 10000);
+
+
+			function rendertimeformat(time) {
+				return time.toISOString().substring(0, now.toISOString().length - 4) + "000+0000";
+			}
+
+			if (type == 'weatherShipActual') { //gets weather for current location, current time
+				var spoofCoord = (coordinate[0] + 0.0001); //add a bit to the coords to make sure the service doesnt throw error
+				URI += rendertimeformat(now) + "','heading': 'RL', 'lat':" + coordinate[0] + ", 'lon':" + coordinate[1] + "},{'eta': '";
+				URI += rendertimeformat(now2) + "','heading': 'RL', 'lat':" + spoofCoord + ", 'lon':" + coordinate[1] + "}]}";
+				return URLencode(URI);
+			} else if (type == 'weatherLocationProjected') {
+				//var newnowStr = "";
+				//for (var i = 0; i != route.sheduleElement.length - 1; i++) {
+				//	now.setTime(now.getTime() + (1000 * 60 * 60) * (2)); //add one hour ((milli * sec * min) * hour = hours)
+				//	newnowStr = now.toISOString().substring(0, now.toISOString().length - 4) + "000+0000";
+				//	console.log(newnowStr);
+				//	route.sheduleElement[i].eta = newnowStr;
+				//}
+			}
+		}
 		//END MANIPULATION HANDLES -----------------------------------------------------------------------------
 
 
@@ -265,14 +339,83 @@
 			],
 			sheduleElement: [
 			{ waypointId: 0, eta: "2016-11-09T00:00:01.000Z" },
-			{ waypointId: 0, eta: "2016-11-09T02:00:01.000Z" },
-			{ waypointId: 0, eta: "2016-11-09T04:00:01.000Z" },
-			{ waypointId: 0, eta: "2016-11-09T06:00:01.000Z" },
-			{ waypointId: 0, eta: "2016-11-09T08:00:01.000Z" },
-			]
+			{ waypointId: 1, eta: "2016-11-09T02:00:01.000Z" },
+			{ waypointId: 2, eta: "2016-11-09T04:00:01.000Z" },
+			{ waypointId: 3, eta: "2016-11-09T06:00:01.000Z" },
+			{ waypointId: 4, eta: "2016-11-09T08:00:01.000Z" },
+			],
+			weatherdata: { //returned data from weather service
+				weatherShipActual: {}, //current weather on GPS pos of ship or start pos on route if no GPS
+				weatherWaypointsProjected: {}, //Each waypoint has a weather forecast
+				weatherRouteLegsProjected: {}, //Each leg has a 10 step weather forecast, intermediate data is calculated
+				weatherAreaActual: {}, //entire route area has an actual wind map at zoom level covering the entire route on screen
+				weatherAreaProjected: {}, //optional wind map projected along the route at zoom level covering approx 10nm radius. (data hungry, approx 100kb for a 10 point route)
+			}
 
 		}
-		//var RouteDotRadius = 20; //radius of route markers, determines sie of all route dots.
+
+		//Updates all the route waypoints time a bit for prototype weather data - expected format "2017-03-17T18:14:42.000+0100" -vs- "2017-03-17T11:46:49.920Z" - js format
+		$(document).ready(function () {
+			var now = new Date();
+			var actualShipNow = now.toISOString().substring(0, now.toISOString().length - 4) + "000+0000";
+
+
+			//
+			//var URLdata = "{'mssi': 999999999, 'datatypes': ['sealevel', 'current', 'wave', 'wind', 'density'], 'dt': 15, 'waypoints': [{ 'eta': '2017-03-18T15:14:42.000+0100', 'heading': 'RL', 'lat': 77.9777, 'lon': 7.382816666666667 }, { 'eta': '2017-03-18T18:14:42.000+0100', 'heading': 'RL', 'lat': 76.8284, 'lon': 8.173833333333333 }]}";
+			//URLdata = URLencode(URLdata);
+
+
+			getWeatherDataAsync = function (request, GPSLocation, weathertype) {
+				$.ajax({
+					cache: false,
+					type: "POST",
+					crossDomain: true,
+					url: "http://sejlrute.dmi.dk/SejlRute/SR",
+					data: "req=" + request,
+					dataType: "text",
+					crossDomain: true,
+					timeout: 10000, //error after timeout
+					success: function (data) {
+						data = JSON.parse(data);
+						if (data.error == 9) {
+							console.log("Communication error with weather service:", data.errorMsg, " - Probably a bad request.");
+						} else {
+							weatherDataCleaner(data, GPSLocation, weathertype);
+						}
+					},
+					error: function (xhr, ajaxOptions, thrownError) {
+						if (thrownError === 'timeout') {
+							console.log('WEATHER SERVICE TIMEOUT!')
+						} else {
+							console.log("Communication error with weather service:'", thrownError, "' - Probably due to no 'Access-Control-Allow-Origin' in header of resource.\nPlease use Chrome plugin: https://chrome.google.com/webstore/detail/allow-control-allow-origi/nlfbmbojpeacfghkpbjhddihlkkiljbi/related?hl=en-US - Rob - the developer.");
+						}
+					},
+				});
+			}
+
+			//To get weather data, the request URI has to be generated by type of request, ajax call made, returned data cleaned, UI rendering function run according to original call.
+			if (useGPS) {
+				//Get vessel actual weather
+				getWeatherDataAsync(generateWeatherRequestURL('weatherShipActual', GPSLocation), GPSLocation, 'weatherShipActual');
+			} else {
+				GPSLocation[0] = route.waypoints[0].lat;
+				GPSLocation[1] = route.waypoints[0].lon;
+				//console.log(generateWeatherRequestURL('weatherShipActual', GPSLocation));
+				getWeatherDataAsync(generateWeatherRequestURL('weatherLocationProjected', GPSLocation));
+			}
+
+
+		});
+
+
+
+
+
+
+
+
+
+		//var RouteDotRadius = 20; //radius of route markers, determines size of all route dots.
 		var WOR = {};
 		WOR.RouteDotRadius = 20;
 		WOR.windowWidthAtInit = $(window).width();
@@ -284,51 +427,6 @@
 
 
 		//CONTENT BUILDING -----------------------------------------------------------------------------------------
-
-
-		////Routelines only, returned on its own layer.
-		//var createRoute = function () { //assumes no error in route object
-		//	function createcoords() {
-		//		var ret = [];
-		//		for (var i = 0; i != route.waypoints.length; i++) {
-		//			var tmparr = [];
-		//			tmparr.push(route.waypoints[i].lon);
-		//			tmparr.push(route.waypoints[i].lat);
-		//			ret.push(tmparr);
-		//		}
-		//		return ret
-		//	}
-		//	var coords = createcoords();
-		//	var lineString = new ol.geom.LineString(coords);
-		//	lineString.transform('EPSG:4326', 'EPSG:3857');
-		//	var feature = new ol.Feature({ // create the feature
-		//		geometry: lineString,
-		//		name: 'RouteLeg',
-
-		//	});
-		//	var lineStyle = new ol.style.Style({
-		//		stroke: new ol.style.Stroke({
-		//			color: 'rgba(255,0,0,0.2)',
-		//			width: 5
-		//		})
-		//	});
-
-		//	var source = new ol.source.Vector({
-		//		features: [feature]
-		//	});
-		//	var vectorLayer = new ol.layer.Vector({
-		//		source: source,
-		//		style: [lineStyle],
-		//		name: 'routelineslayer',
-		//		//updateWhileAnimating: false,
-		//		//updateWhileInteracting: false
-		//	});
-
-
-		//	return vectorLayer;
-		//}
-
-
 
 		//Route start & end points - names: RouteStartDot, RouteEndDot
 		RouteDotStartBorderStyle = function () { //route start end style - scales according to zoom level in USER INTERACTION section
@@ -388,6 +486,7 @@
 
 
 
+		//ROUTE DOTS (waypoints)
 		RDstyle = function () { //route start end style - scales according to zoom level in USER INTERACTION section
 			return [new ol.style.Style({
 				stroke: new ol.style.Stroke({
@@ -407,8 +506,6 @@
 		var createRouteDots = function () {
 			var features = [];
 			if (route.waypoints.length > 2) {
-
-				//DOTS
 				for (var i = 1; i != route.waypoints.length - 1; i++) {
 					var feature1 = new ol.Feature({ // create the feature
 						geometry: new ol.geom.Circle([route.waypoints[i].lon, route.waypoints[i].lat]).transform('EPSG:4326', 'EPSG:3857'),
@@ -432,6 +529,8 @@
 			return features;
 		}
 
+
+		//ROUTE LEGS
 		var createRouteLegs = function () {
 			var features = [];
 
@@ -942,6 +1041,7 @@
 			})
 		});
 
+		console.log("bob1");
 		var mapSource = routeLayer.getSource();
 		mapSource.addFeatures(routeHandle);
 		mapSource.addFeatures(routeDotsHandle);
@@ -999,6 +1099,7 @@
 			//	});
 		}
 		map.once('postrender', function (event) {
+			mapRenderComplete = true;
 			renderWORControls(WORDetectRouteDirection());
 		});
 
@@ -1160,17 +1261,147 @@
 				});
 				shipCompassFeature.setId('COMPASS_' + shiptype);
 				shipCompassFeature.setStyle(retRouteCompassStyle()); //generated style
-
-
-
-
-
-
 				//return [shipFeature];
 				return [shipFeature, shipCompassFeature];
 			}
 			console.log("No shiptype!");
 		}
+
+
+
+
+
+
+
+
+
+		//Weather On Route Marker (WORM) generator
+		//var WORMWaveparams = { text: '2,5', rot: -135, anchor: [0.52, 0.25] };
+		var retVesselWORMWaveStyle = function (scale, wavedir, wavestr) {
+			if (!scale) scale = 1;
+			if (!wavedir) wavedir = 180;
+			if (!wavestr) wavestr = 0;
+			var WORMWaveStyle = new ol.style.Style({
+				image: new ol.style.Icon({
+					opacity: 0.75,
+					rotation: degToRad(wavedir), //wavepointer is pointing lowerright
+					anchor: [(0.5), (0.5)],
+					anchorXUnits: 'fraction',
+					anchorYUnits: 'fraction',
+					src: 'images/WOR_backdropcircle.png', //needs path
+					scale: (0.5 * scale)
+				}),
+				text: new ol.style.Text({
+					font: '12px helvetica,sans-serif',
+					text: ('' + wavestr),
+					offsetX: calcSinCosFromAngle('x', wavedir, (36 * scale)),
+					offsetY: calcSinCosFromAngle('y', wavedir, (36 * scale)),
+					scale: (1 * scale),
+
+					//rotation: 360 * rnd * Math.PI / 180,
+					fill: new ol.style.Fill({
+						color: '#000'
+					}),
+					stroke: new ol.style.Stroke({
+						color: '#fff',
+						width: 1
+					})
+				})
+			});
+			return WORMWaveStyle;
+		}
+
+
+		//var WORMCurrentparams = { text: '2', rot: -135, anchor:  };
+		var retVesselWORMCurrentStyle = function (scale, currdir, currstr) {
+			if (!scale) scale = 1;
+			if (!currdir) currdir = 180;
+			if (!currstr) currstr = 0;
+			var WORMCurrentStyle = new ol.style.Style({
+				image: new ol.style.Icon({
+					opacity: 1,
+					rotation: degToRad(currdir), //currentpointer is pointing lowerright
+					anchor: [0.5, 0.5],
+					anchorXUnits: 'fraction',
+					anchorYUnits: 'fraction',
+					src: 'images/WOR_innercircle.png', //needs path
+					scale: (0.5 * scale)
+				}),
+				text: new ol.style.Text({
+					font: '10px helvetica,sans-serif',
+					text: ('' + currstr),
+					offsetX: calcSinCosFromAngle('x', currdir, (22 * scale)),
+					offsetY: calcSinCosFromAngle('y', currdir, (22 * scale)),
+					scale: (1 * scale),
+					//rotation: 360 * rnd * Math.PI / 180,
+					fill: new ol.style.Fill({
+						color: '#000'
+					}),
+					stroke: new ol.style.Stroke({
+						color: '#fff',
+						width: 1
+					})
+				})
+			});
+			return WORMCurrentStyle;
+		}
+
+
+		//var WORMWindparams = { rot: -135, anchor: [0.5, 0.5] };
+		var retVesselWORMWindStyle = function (scale, winddir, windstr) {
+			if (!scale) scale = 1;
+			if (!winddir) winddir = 180;
+			var WORMWindStyle = new ol.style.Style({
+				image: new ol.style.Icon(({
+					opacity: 1,
+					rotation: degToRad(winddir), //windpointer is straight is pointing straight down
+					anchor: [(0.52), (0.25)],
+					anchorXUnits: 'fraction',
+					anchorYUnits: 'fraction',
+					src: 'images/wind/mark005.png', //needs path and windstr to paint correct arrow
+					scale: (0.70 * scale)
+				}))
+			});
+			return WORMWindStyle;
+		}
+
+		var generateVesselWORM = function (identifier, type, lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, wavestr) { //type is given so it can be styled, identifier must be unique.
+			if (!lon || !lat) { lon = 0; lat = 0; }
+			var iconFeature = new ol.Feature({ //WAVEARROW
+				geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
+				name: 'WOR_wavemarker',
+				type: type,
+				src: 'images/WOR_backdropcircle.png',
+			});
+			iconFeature.setStyle(retVesselWORMWaveStyle(scale, wavedir, wavestr)); //generated style
+			iconFeature.setId('vesselwavemarker');
+
+			//CURRENTARROW
+			var iconFeature2 = new ol.Feature({
+				geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
+				name: 'WOR_currentmarker',
+				type: type,
+				src: 'images/WOR_innercircle.png',
+			});
+			iconFeature2.setStyle(retVesselWORMCurrentStyle(scale, currdir, currstr));
+			iconFeature2.setId('vesselcurrentmarker');
+
+			//WINDARROW
+			var iconFeature3 = new ol.Feature({
+				geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
+				name: 'WOR_windmarker',
+				type: type,
+				src: 'images/wind/mark005.png',
+			});
+			iconFeature3.setStyle(retVesselWORMWindStyle(scale, winddir, windstr));
+			iconFeature3.setId('vesselwindmarker');
+
+			return [iconFeature, iconFeature2, iconFeature3];
+		}
+
+
+
+
 		GhostShipMarker = generateShip('ghostship', WORReturnFeatureData("RouteStartDot").lon, WORReturnFeatureData("RouteStartDot").lat, 1);
 		mapSource.addFeatures(GhostShipMarker);
 
