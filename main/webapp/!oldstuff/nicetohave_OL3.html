@@ -8,6 +8,64 @@
 
 </body>
 </html>
+				//$.ajax({
+				//	cache: false,
+				//	type: "POST",
+				//	crossDomain: true,
+				//	url: "http://sejlrute.dmi.dk/SejlRute/SR",
+				//	data: "req=" + request,
+				//	dataType: "text",
+				//	crossDomain: true,
+				//	timeout: 10000, //error after timeout
+				//	success: function (data) {
+				//		data = JSON.parse(data);
+				//		if (data.error == 9) {
+				//			console.log("Communication error with weather service:", data.errorMsg, " - Probably a bad request.");
+				//		} else {
+				//			weatherDataCleaner(data, GPSLocation, weathertype);
+				//		}
+				//	},
+				//	error: function (xhr, ajaxOptions, thrownError) {
+				//		if (thrownError === 'timeout') {
+				//			console.log('WEATHER SERVICE TIMEOUT!')
+				//		} else {
+				//			console.log("Communication error with weather service:'", thrownError, "' - Probably due to no 'Access-Control-Allow-Origin' in header of resource.\nPlease use Chrome plugin: https://chrome.google.com/webstore/detail/allow-control-allow-origi/nlfbmbojpeacfghkpbjhddihlkkiljbi/related?hl=en-US - Rob - the developer.");
+				//		}
+				//	},
+				//});
+
+
+
+		//Generates an URL to request weather data from provider
+		//generateWeatherRequestURL = function (type, coordinate, projectedtime, projectedtimeETA) {
+		//	var URI = "{'mssi': 999999999, 'datatypes': ['sealevel', 'current', 'wave', 'wind', 'density'], 'dt': 15, 'waypoints': [{ 'eta': '";
+		//	var now = new Date(), now2 = new Date();
+		//	//now.setTime(now.getTime() + (1000 * 60 * 60) * (2));
+		//	now2.setTime(now2.getTime() + 10000);
+
+
+		//	function rendertimeformat(time) {
+		//		return time.toISOString().substring(0, now.toISOString().length - 4) + "000+0000";
+		//	}
+
+		//	if (type == 'weatherShipActual') { //gets weather for current location, current time
+		//		var spoofCoord = (coordinate[0] + 0.0001); //add a second to the coords to make sure the service doesnt throw error
+		//		URI += rendertimeformat(now) + "','heading': 'RL', 'lat':" + coordinate[0] + ", 'lon':" + coordinate[1] + "},{'eta': '";
+		//		URI += rendertimeformat(now2) + "','heading': 'RL', 'lat':" + spoofCoord + ", 'lon':" + coordinate[1] + "}]}";
+		//		return URLencode(URI);
+		//	} else if (type == 'weatherLocationProjected') {
+		//		//var newnowStr = "";
+		//		//for (var i = 0; i != route.sheduleElement.length - 1; i++) {
+		//		//	now.setTime(now.getTime() + (1000 * 60 * 60) * (2)); //add one hour ((milli * sec * min) * hour = hours)
+		//		//	newnowStr = now.toISOString().substring(0, now.toISOString().length - 4) + "000+0000";
+		//		//	console.log(newnowStr);
+		//		//	route.sheduleElement[i].eta = newnowStr;
+		//		//}
+		//	}
+		//}
+
+
+
 
 
 

@@ -9,6 +9,10 @@
 	<script src="scripts/draggabilly.pkgd.min.js"></script>
 	<link rel="stylesheet" href="css/bootstrap.min.css"><!-- For dragging - has an angular directive at:https://github.com/Jimdo/angular-draggabilly -->
 	<link rel="stylesheet" href="css/WeatherOnRoute.css" />
+	<script src="scripts/turf.min.js"></script>
+	<script src="scripts/WOR_declarations.js"></script>
+	<script src="scripts/WOR_workfunctions.js"></script>
+	<script src="scripts/WOR_WeatherServiceHandler.js"></script> <!-- Handles communication with weather service provider - returns data to route object-->
 	<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
 	<meta name="msapplication-tap-highlight" content="no" />
 
@@ -83,6 +87,12 @@
 						<li>Placed windarrow on top of ship</li>
 						<li>Changed ajax call to private server to make prototype for BW service against existing DMI</li>
 						<li>Made initial request/response work for prototype ajax</li>
+						<li>Polished ajax call as a function for all single point weather query</li>
+						<li>Extracted functions from main html to ease pending integration with angular</li>
+						<li>Added minZoom to map to prevent infinite zoom out</li>
+						<li>Added vesselactual</li>
+						<li>Made vesselactual GPS work if available</li>
+						<li>Made compassheading for vesselactual if available</li>
 					</ul>
 
 					<!--Version 0. notes:
@@ -93,7 +103,6 @@
 						<li></li>
 						<li></li>
 					</ul>-->
-
 
 				</div>
 				<div style="position:absolute;top:0%;left:3%;width:20%;height:100px;background:#ffffff;overflow:hidden;">
@@ -106,49 +115,14 @@
 
 
 	<script>
-
+		
+		// Show/hide the information window. 
 		$('#containerDiv').on('click', function (evt) {
 			$('#containerDiv').addClass('hide');
 		});
 		$('#logoDiv').on('click', function (evt) {
 			$('#containerDiv').removeClass('hide');
 		});
-
-
-		window.onload = function () { // GEOLOCATION
-			var startPos;
-			var geoOptions = {
-				maximumAge: 5 * 60 * 1000, //timeout for request return
-			}
-			var geoSuccess = function (position) {
-				startPos = position;
-				console.log("Current location:", startPos.coords.latitude, ",", startPos.coords.longitude);
-			};
-			var geoError = function (error) {
-				console.log('Error occurred. Error code: ' + error.code);
-				//   0: unknown error
-				//   1: permission denied
-				//   2: position unavailable (error response from location provider)
-				//   3: timed out
-			};
-			//navigator.geolocation.getCurrentPosition(geoSuccess, geoError, geoOptions);
-		};
-
-		//COMPASS
-		if (window.DeviceOrientationEvent) {
-			// Listen for the deviceorientation event and handle the raw data
-			window.addEventListener('deviceorientation', function (eventData) {
-				var compassdir;
-
-				if (event.webkitCompassHeading) {
-					// Apple works only with this, alpha doesn't work
-					compassdir = event.webkitCompassHeading;
-				}
-				else compassdir = event.alpha;
-				//console.log("Heading:", compassdir);
-			});
-
-		}
 
 
 		/*
@@ -174,8 +148,7 @@
 			Route and Points
 			Weather On Route Marker (WORM)
 
-		Map init
-			has 2 layers
+		Map init - one layer only - 
 
 		User interaction
 			mousemove
@@ -203,255 +176,33 @@
 
 
 
+		$(document).ready(function () {
 
 
 
-		//MANIPULATION HANDLES -----------------------------------------------------------------------------
-		// convert degrees to radians
 
-
-		var useGPS = true;
-		var WeatherServiceRequestURL = "";
-		var GPSLocation = [55.072917200215191, 13.711061468866212] //has latlon of current position. (Timer constantly updating GPS is required)
-		var mapRenderComplete = false;
-		var weatherFetchComplete = false;
-
-		// convert degrees to radians
-		function degToRad(deg) {
-			return deg * Math.PI * 2 / 360;
-		}
-
-
-		// convert radians to degrees
-		function radToDeg(rad) {
-			return rad * 360 / (Math.PI * 2);
-		}
-
-		function getRandomInt(min, max) {
-			min = Math.ceil(min);
-			max = Math.floor(max);
-			return Math.floor(Math.random() * (max - min)) + min;
-		}
-
-		function calcSinCosFromAngle(xy, angle, radius) { //requires ('x' or 'y'), angle in degrees and radius in px.
-			var SinCos;
-			if (xy == 'x') SinCos = radius * Math.cos(angle); // Calculate the x position of the element.
-			if (xy == 'y') SinCos = radius * Math.sin(angle); // Calculate the y position of the element.
-			return SinCos;
-		}
-
-
-		function getAngleFromPoints(cx, cy, ex, ey) { //returns the angle of a line fom 2 points xy - xy -> careful if using negative numbers. This is for the Baltic, which is in positive.
-			var dy = ey - cy;
-			var dx = ex - cx;
-			var theta = Math.atan2(dy, dx); // range (-PI, PI]
-			theta *= 180 / Math.PI; // rads to degs, range (-180, 180]
-			//if (theta < 0) theta = 360 + theta; // range [0, 360)
-			return theta;
-		}
-
-
-		var getDistanceFromCoords = function (lonlat1, lonlat2) { //returns distance in nautical miles between 2 points. format: lonlatX=[xx.xx,xx.xx]
-			var wgs84Sphere = new ol.Sphere(6378137); //define spherical math layout
-			var length;
-			var coordinates = []; coordinates.push(lonlat1); coordinates.push(lonlat2);
-			length = 0;
-			var sourceProj = map.getView().getProjection();
-			for (var i = 0, ii = coordinates.length - 1; i < ii; ++i) {
-				var c1 = ol.proj.transform(coordinates[i], sourceProj, 'EPSG:3857');
-				var c2 = ol.proj.transform(coordinates[i + 1], sourceProj, 'EPSG:3857');
-				length += wgs84Sphere.haversineDistance(c1, c2);
-			}
-			var output = length * 0.539956803;
-			output = (Math.round(output / 1000 * 100) / 100)
-			return output;
-		};
-
-		//ENcode/Decode is used for comm with DMI for weather data - expects doublequotes
-		function URLencode(data) {
-			data = data.replace(/'/g, '"');
-			return encodeURIComponent(data)//.replace(/'/g, "%27").replace(/"/g, "%22");
-		}
-		function URLdecode(data) {
-			return decodeURIComponent(data.replace(/\+/g, " "));
-		}
-
-		//Frontend cleanup until backend is made
-		weatherDataCleaner = function (data, GPSLocation, weathertype) { //type: point, leg, area
-
-			console.log("Weather Service returned:\n", data, "- \n", weathertype);
-			route.weatherdata.weatherShipActual = "";
-			var wid = Math.round(data.metocForecast.forecasts[0]["wind-dir"].forecast * 10) / 10;
-			var wis = Math.round(data.metocForecast.forecasts[0]["wind-speed"].forecast * 10) / 10;
-			var wah = Math.round(data.metocForecast.forecasts[0]["wave-height"].forecast * 10) / 10;
-			var wad = Math.round(data.metocForecast.forecasts[0]["wave-dir"].forecast * 10) / 10;
-			var cud = Math.round(data.metocForecast.forecasts[0]["current-dir"].forecast * 10) / 10;
-			var cus = Math.round(data.metocForecast.forecasts[0]["current-speed"].forecast * 10) / 10;
-
-			//put weather into route object
-			route.weatherdata.weatherShipActual.wid = wid;
-			route.weatherdata.weatherShipActual.wis = wis;
-			route.weatherdata.weatherShipActual.wah = wah;
-			route.weatherdata.weatherShipActual.wad = wad;
-			route.weatherdata.weatherShipActual.cud = cud;
-			route.weatherdata.weatherShipActual.cus = cus;
-
-
-			//timer waiting to load featers until render is completed - in case of slow map.
+			//timer waiting to load vessel features and vessel weather until render is completed - in case of slow map.
 			function renderComplete() {
-				if (mapRenderComplete) {
-					clearInterval(waitForRenderCompleteTimer);
-					weatherFetchComplete = true; //flag 
-					//(identifier, type, lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, wavestr)
-					mapSource.addFeatures(generateVesselWORM('yolo', 'bob', GPSLocation[1], GPSLocation[0], 1, wid, wis, cud, cus, wad, wah));
+				if (mapRenderComplete && weatherFetchComplete) {
+					clearInterval(waitForRenderCompleteTimer); //this timer only rolls once.
+					weatherFetchComplete = false; //flag reset
+					//(identifier, type, lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, waveheight)
+					mapSource.addFeatures(generateVesselWORM('ghostvesselWORM', 'ghostvessel', GPSLocationActual[1], GPSLocationActual[0], 1, route.weatherdata.ghostvessel.wid, route.weatherdata.ghostvessel.wis, route.weatherdata.ghostvessel.cud, route.weatherdata.ghostvessel.cus, route.weatherdata.ghostvessel.wad, route.weatherdata.ghostvessel.wah));
 					rotateWeatherIndicators(); //rotates all weather indicators to align correctly with text - also called on map move/change
-					rotateMapShipIcons(); //rotates the ghostship and actual ship according to the leg it is on
+					//rotateMapVesselIcon(); //rotates the ghostvessel and actual ship according to the leg it is on
 				}
 			}
-			var waitForRenderCompleteTimer = setInterval(function () { renderComplete() }, 100);
-
-			
-
-		}
-
-		//Generates an URL to request weather data from provider
-		generateWeatherRequestURL = function (type, coordinate, projectedtime) {
-			var URI = "{'mssi': 999999999, 'datatypes': ['sealevel', 'current', 'wave', 'wind', 'density'], 'dt': 15, 'waypoints': [{ 'eta': '";
-			var now = new Date(), now2 = new Date();
-			//now.setTime(now.getTime() + (1000 * 60 * 60) * (2));
-			now2.setTime(now2.getTime() + 10000);
 
 
-			function rendertimeformat(time) {
-				return time.toISOString().substring(0, now.toISOString().length - 4) + "000+0000";
-			}
-
-			if (type == 'weatherShipActual') { //gets weather for current location, current time
-				var spoofCoord = (coordinate[0] + 0.0001); //add a bit to the coords to make sure the service doesnt throw error
-				URI += rendertimeformat(now) + "','heading': 'RL', 'lat':" + coordinate[0] + ", 'lon':" + coordinate[1] + "},{'eta': '";
-				URI += rendertimeformat(now2) + "','heading': 'RL', 'lat':" + spoofCoord + ", 'lon':" + coordinate[1] + "}]}";
-				return URLencode(URI);
-			} else if (type == 'weatherLocationProjected') {
-				//var newnowStr = "";
-				//for (var i = 0; i != route.sheduleElement.length - 1; i++) {
-				//	now.setTime(now.getTime() + (1000 * 60 * 60) * (2)); //add one hour ((milli * sec * min) * hour = hours)
-				//	newnowStr = now.toISOString().substring(0, now.toISOString().length - 4) + "000+0000";
-				//	console.log(newnowStr);
-				//	route.sheduleElement[i].eta = newnowStr;
-				//}
-			}
-		}
-		//END MANIPULATION HANDLES -----------------------------------------------------------------------------
-
-
-
-
-
-		//DEFINITIONS ------------------------------------------------------------------------------------------
-
-		var route = {
-			waypoints: [
-			{ id: 0, name: "pos1", legspeedmin: 12, legspeedmax: 13, lon: 13.711061468866212, lat: 55.072917200215191, winddirection: 190, windspeed: 24, airtemperature: 9, currentdirection: 155, currentspeed: 3.2 },
-			{ id: 1, name: "pos2", legspeedmin: 11, legspeedmax: 12, lon: 12.663240423944345, lat: 54.880610640482985, winddirection: 120, windspeed: 28, airtemperature: 9, currentdirection: 140, currentspeed: 3.1 },
-			{ id: 2, name: "pos3", legspeedmin: 11, legspeedmax: 12, lon: 12.005518697218807, lat: 54.535904500233981, winddirection: 122, windspeed: 30, airtemperature: 9, currentdirection: 136, currentspeed: 3.4 },
-			{ id: 3, name: "pos4", legspeedmin: 10, legspeedmax: 11, lon: 11.930997774565851, lat: 54.569907839824936, winddirection: 145, windspeed: 30, airtemperature: 9, currentdirection: 130, currentspeed: 3.8 },
-			{ id: 4, name: "pos5", legspeedmin: 10, legspeedmax: 11, lon: 11.883514521671373, lat: 54.567784008455305, winddirection: 160, windspeed: 30, airtemperature: 9, currentdirection: 130, currentspeed: 3.6 }
-			],
-			sheduleElement: [
-			{ waypointId: 0, eta: "2016-11-09T00:00:01.000Z" },
-			{ waypointId: 1, eta: "2016-11-09T02:00:01.000Z" },
-			{ waypointId: 2, eta: "2016-11-09T04:00:01.000Z" },
-			{ waypointId: 3, eta: "2016-11-09T06:00:01.000Z" },
-			{ waypointId: 4, eta: "2016-11-09T08:00:01.000Z" },
-			],
-			weatherdata: { //returned data from weather service
-				weatherShipActual: {}, //current weather on GPS pos of ship or start pos on route if no GPS
-				weatherWaypointsProjected: {}, //Each waypoint has a weather forecast
-				weatherRouteLegsProjected: {}, //Each leg has a 10 step weather forecast, intermediate data is calculated
-				weatherAreaActual: {}, //entire route area has an actual wind map at zoom level covering the entire route on screen
-				weatherAreaProjected: {}, //optional wind map projected along the route at zoom level covering approx 10nm radius. (data hungry, approx 100kb for a 10 point route)
-			}
-
-		}
-
-		//Updates all the route waypoints time a bit for prototype weather data - expected format "2017-03-17T18:14:42.000+0100" -vs- "2017-03-17T11:46:49.920Z" - js format
-		$(document).ready(function () {
-			var now = new Date();
-			var actualShipNow = now.toISOString().substring(0, now.toISOString().length - 4) + "000+0000";
-
-
-			//
-			//var URLdata = "{'mssi': 999999999, 'datatypes': ['sealevel', 'current', 'wave', 'wind', 'density'], 'dt': 15, 'waypoints': [{ 'eta': '2017-03-18T15:14:42.000+0100', 'heading': 'RL', 'lat': 77.9777, 'lon': 7.382816666666667 }, { 'eta': '2017-03-18T18:14:42.000+0100', 'heading': 'RL', 'lat': 76.8284, 'lon': 8.173833333333333 }]}";
-			//URLdata = URLencode(URLdata);
-
-
-			getWeatherDataAsync = function (request, GPSLocation, weathertype) {
-
-				
-				$.ajax({
-					cache: false,
-					type: "POST",
-					crossDomain: true,
-					url: "http://roland.beeres.dk/wor/worservice/handler.ashx",
-					//data: "req=" + request,
-					dataType: "text",
-					crossDomain: true,
-					timeout: 10000, //error after timeout
-					success: function (data) {
-						data = JSON.parse(data);
-						if (data.error == 9) {
-							console.log("Communication error with weather service:", data.errorMsg, " - Probably a bad request.");
-						} else {
-							weatherDataCleaner(data, GPSLocation, weathertype);
-						}
-					},
-					error: function (xhr, ajaxOptions, thrownError) {
-						if (thrownError === 'timeout') {
-							console.log('WEATHER SERVICE TIMEOUT!')
-						} else {
-							console.log("Communication error with weather service:'", thrownError, "' - Probably due to no 'Access-Control-Allow-Origin' in header of resource.\nPlease use Chrome plugin: https://chrome.google.com/webstore/detail/allow-control-allow-origi/nlfbmbojpeacfghkpbjhddihlkkiljbi/related?hl=en-US - Rob - the developer.");
-						}
-					},
-				});
-
-				//$.ajax({
-				//	cache: false,
-				//	type: "POST",
-				//	crossDomain: true,
-				//	url: "http://sejlrute.dmi.dk/SejlRute/SR",
-				//	data: "req=" + request,
-				//	dataType: "text",
-				//	crossDomain: true,
-				//	timeout: 10000, //error after timeout
-				//	success: function (data) {
-				//		data = JSON.parse(data);
-				//		if (data.error == 9) {
-				//			console.log("Communication error with weather service:", data.errorMsg, " - Probably a bad request.");
-				//		} else {
-				//			weatherDataCleaner(data, GPSLocation, weathertype);
-				//		}
-				//	},
-				//	error: function (xhr, ajaxOptions, thrownError) {
-				//		if (thrownError === 'timeout') {
-				//			console.log('WEATHER SERVICE TIMEOUT!')
-				//		} else {
-				//			console.log("Communication error with weather service:'", thrownError, "' - Probably due to no 'Access-Control-Allow-Origin' in header of resource.\nPlease use Chrome plugin: https://chrome.google.com/webstore/detail/allow-control-allow-origi/nlfbmbojpeacfghkpbjhddihlkkiljbi/related?hl=en-US - Rob - the developer.");
-				//		}
-				//	},
-				//});
-			}
-
-			//To get weather data, the request URI has to be generated by type of request, ajax call made, returned data cleaned, UI rendering function run according to original call.
 			if (useGPS) {
-				//Get vessel actual weather
-				getWeatherDataAsync(generateWeatherRequestURL('weatherShipActual', GPSLocation), GPSLocation, 'weatherShipActual');
 			} else {
-				GPSLocation[0] = route.waypoints[0].lat;
-				GPSLocation[1] = route.waypoints[0].lon;
-				//console.log(generateWeatherRequestURL('weatherShipActual', GPSLocation));
-				getWeatherDataAsync(generateWeatherRequestURL('weatherLocationProjected', GPSLocation));
+				GPSLocationActual[0] = route.waypoints[0].lat;
+				GPSLocationActual[1] = route.waypoints[0].lon;
 			}
-
+			var time = new Date();
+			time.setTime(time.getTime());
+			getWeatherDataAsync('ghostvessel', time, null, GPSLocationActual); //get current location weather right now.
+			var waitForRenderCompleteTimer = setInterval(function () { renderComplete() }, 100); //handles data when returned - using weatherFetchComplete and request
 
 		});
 
@@ -463,13 +214,7 @@
 
 
 
-		//var RouteDotRadius = 20; //radius of route markers, determines size of all route dots.
-		var WOR = {};
-		WOR.RouteDotRadius = 20;
-		WOR.windowWidthAtInit = $(window).width();
-		WOR.windowWidthAfterResize = 0;
-		WOR.ShipIconPosition = 0; //position in percentage of the routebar - saved everytime icon is moved - repositioned everytime map and browser is scaled or moved to fit.
-		//END DEFINITIONS ------------------------------------------------------------------------------------------
+
 
 
 
@@ -593,12 +338,21 @@
 			if (route.waypoints.length > 2) {
 				for (var i = 0; i != route.waypoints.length - 1; i++) {
 					var coords = [];
+
+					if (i < route.waypoints.length) { //give angle with the feature so ship icon can be rotated to match
+						var start = [route.waypoints[i].lon, route.waypoints[i].lat];
+						var end = [route.waypoints[i + 1].lon, route.waypoints[i + 1].lat];
+						var rotation = turf.bearing(start, end);
+						console.log("rotation of leg:", i, " is", rotation);
+					}
+
 					coords.push([route.waypoints[i].lon, route.waypoints[i].lat]);
 					coords.push([route.waypoints[i + 1].lon, route.waypoints[i + 1].lat]);
 					var feature1 = new ol.Feature({ // create the feature
 						geometry: new ol.geom.LineString(coords).transform('EPSG:4326', 'EPSG:3857'),
 						name: 'RouteLeg',
 						routeLegNumber: i,
+						legrotation: rotation,
 
 					});
 					feature1.setId('RouteLeg' + i);
@@ -1085,7 +839,8 @@
 		],
 			view: new ol.View({
 				center: ol.proj.transform([12.68383978917871, 54.83159902246746], 'EPSG:4326', 'EPSG:3857'),
-				zoom: 9
+				zoom: 9,
+				minZoom: 2,
 			})
 		});
 
@@ -1176,7 +931,8 @@
 						src.forEachFeature(function (feature) { //loop through each feature
 							var name = feature.get("name");
 							if (featurename == name) {
-								retval.aaaaa = "You can only return data which has been set when creating the feature, styling it afterwards does not add the feature properties.";
+
+								retval.aaa = "You can only return data which has been set when creating the feature, styling it afterwards does not add the feature properties.";
 								retval.name = name;
 								retval.rotation = feature.get("rotation");
 								retval.type = feature.get("type");
@@ -1219,8 +975,8 @@
 		// Second ship is the timeprojected ghost icon which shows the weather information at that location at that time, as expected to be on the route.
 		// TODO deviation of route handling - what to do, warnings etc.
 
-		var GhostShipMarker; // time projected ship
-		var ShipMarker; //actual ship - placed over ghostship
+		var ghostvesselMarker; // time projected ship
+		var ShipMarker; //actual ship - placed over ghostvessel
 
 		var retRouteShipStyle = function (shiptype, scale, angle, lon, lat) { //shiptype: standard or ghost
 			var opacity = 100;
@@ -1230,8 +986,8 @@
 			var ShipStyle = new ol.style.Style({
 				zIndex: 10,
 				image: new ol.style.Icon(({
-					opacity: 0.6,
-					rotation: degToRad(angle),
+					opacity: 0.5,
+					rotation: degToRad(mapSource.getFeatureById("RouteLeg0").get("legrotation")),
 					anchor: [(0.50), (0.50)],
 					anchorXUnits: 'fraction',
 					anchorYUnits: 'fraction',
@@ -1252,6 +1008,7 @@
 					//rotation: degToRad(60),
 					opacity: 1,
 					anchor: [(0.50), (0.50)],
+					rotation: degToRad(mapSource.getFeatureById("RouteLeg0").get("legrotation")),
 					anchorXUnits: 'fraction',
 					anchorYUnits: 'fraction',
 					src: 'images/shipIconCompass_Red.png', //needs path and windstr to paint correct arrow
@@ -1262,7 +1019,7 @@
 					//lat: lat,
 				}))
 			});
-			return ShipStyle;			//var compassStyle = new ol.style.Style({
+			return ShipStyle;	//var compassStyle = new ol.style.Style({
 
 		};
 
@@ -1278,13 +1035,15 @@
 					src: 'images/vessel_topview_containership.png',
 					lon: lon,
 					lat: lat,
-					id: 'ROUTESHIPMARKER_' + shiptype,
+					rotation: 0,
+					//id: 'ROUTESHIPMARKER_' + shiptype,
 					rotateWithView: true
 				});
 				shipFeature.setStyle(retRouteShipStyle(shiptype, scale, angle, lon, lat)); 
 				shipFeature.setId(shiptype);
 				shipFeature.setStyle(retRouteShipStyle(shiptype, scale, angle));
 				shipFeature.setId('ROUTESHIPMARKER_' + shiptype);
+				console.log("generated ship:", 'ROUTESHIPMARKER_' + shiptype);
 				var shipCompassFeature = new ol.Feature({ 
 					geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
 					name: 'COMPASS_' + shiptype,
@@ -1409,9 +1168,10 @@
 
 		var generateVesselWORM = function (identifier, type, lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, wavestr) { //type is given so it can be styled, identifier must be unique.
 			if (!lon || !lat) { lon = 0; lat = 0; }
+			//console.log("generating vessel:",type, "lon:",lon, "lat:",lat);
 			var iconFeature = new ol.Feature({ //WAVEARROW
 				geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
-				name: 'vesselwavemarker',
+				name: type + '_wavemarker',
 				type: type,
 				lon:lon,
 				lat:lat,
@@ -1419,13 +1179,14 @@
 				rotateWithView: true,
 				rotation: degToRad(wavedir),
 			});
+
 			iconFeature.setStyle(retVesselWORMWaveStyle(scale, wavedir, wavestr)); //generated style
-			iconFeature.setId('vesselwavemarker');
+			iconFeature.setId(type+'_wavemarker');
 
 			//CURRENTARROW
 			var iconFeature2 = new ol.Feature({
 				geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
-				name: 'vesselcurrentmarker',
+				name: type + '_currentmarker',
 				lon: lon,
 				lat: lat,
 				type: type,
@@ -1435,19 +1196,19 @@
 				rotation: degToRad(currdir), //currentpointer is pointing lowerright
 			});
 			iconFeature2.setStyle(retVesselWORMCurrentStyle(scale, currdir, currstr));
-			iconFeature2.setId('vesselcurrentmarker');
+			iconFeature2.setId(type+'_currentmarker');
 
 			//WINDARROW
 			var iconFeature3 = new ol.Feature({
 				geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
-				name: 'vesselwindmarker',
+				name: type + '_windmarker',
 				type: type,
 				src: 'images/wind/mark005.png',
 				rotation: degToRad(winddir), 
 				zIndex: 20,
 			});
 			iconFeature3.setStyle(retVesselWORMWindStyle(scale, winddir, windstr));
-			iconFeature3.setId('vesselwindmarker');
+			iconFeature3.setId(type+'_windmarker');
 
 			return [iconFeature, iconFeature2, iconFeature3];
 		}
@@ -1455,10 +1216,15 @@
 
 
 
-		GhostShipMarker = generateShip('ghostship', WORReturnFeatureData("RouteStartDot").lon, WORReturnFeatureData("RouteStartDot").lat, 1);
-		mapSource.addFeatures(GhostShipMarker);
+		ghostvesselMarker = generateShip('ghostvessel', WORReturnFeatureData("RouteStartDot").lon, WORReturnFeatureData("RouteStartDot").lat, 1);
+		mapSource.addFeatures(ghostvesselMarker);
 
-		ShipMarker = generateShip('standard', 13, 54, 1);
+		//vesselactualMarker = generateShip('vesselactual', WORReturnFeatureData("RouteStartDot").lon, WORReturnFeatureData("RouteStartDot").lat, 1);
+		//mapSource.addFeatures(vesselactualMarker);
+
+
+
+		//ShipMarker = generateShip('standard', 13, 54, 1);
 
 
 		// END SHIP ON ROUTE
@@ -1504,20 +1270,22 @@
 
 		//Rotates any vessel WORM individually - scaleoffset is manually set
 		function rotateVesselAndVesselWeatherIndicator(vessel, featureid, degrees, scaleoffset) {
-			if (mapRenderComplete && weatherFetchComplete) {
+			if (mapRenderComplete) {
 				if (!scaleoffset) scaleoffset = 0;
 				try {
-					var feat = WORReturnFeatureData(featureid);
+					var feat = WORReturnFeatureData(vessel+"_"+featureid);
 					var rot = radToDeg(feat.rotation);
 					var newrot = degToRad(rot);
 					var radOff = 0.47; //text offset in radians to current and wave indicator
 					var newOffsetX = calcSinCosFromAngle('x', newrot + radOff, (scaleoffset * feat.scale));
 					var newOffsetY = calcSinCosFromAngle('y', newrot + radOff, (scaleoffset * feat.scale));
-					mapSource.getFeatureById(featureid).getStyle().getImage().setRotation(newrot)
+					mapSource.getFeatureById(vessel + "_" + featureid).getStyle().getImage().setRotation(newrot)
 					try { //if no text element, ignores with errortrap
-						mapSource.getFeatureById(featureid).getStyle().getText().setOffsetX(newOffsetX);
-						mapSource.getFeatureById(featureid).getStyle().getText().setOffsetY(newOffsetY);
-					} catch (rotateExceptionNotext) { }
+						mapSource.getFeatureById(vessel + "_" + featureid).getStyle().getText().setOffsetX(newOffsetX);
+						mapSource.getFeatureById(vessel + "_" + featureid).getStyle().getText().setOffsetY(newOffsetY);
+					} catch (rotateExceptionNotext) {
+						//console.log("Cannot:",vessel + "_" + featureid);
+					}
 					mapSource.changed();
 				} catch (rotateException) {
 					console.log("Error: rotateVesselWeatherIndicator failed!\nvessel:", vessel, "\nfeatureid:", featureid, "\ndegrees:", degrees);
@@ -1525,20 +1293,58 @@
 			}
 		}
 		function rotateWeatherIndicators() {
-			rotateVesselAndVesselWeatherIndicator('ghostship', 'vesselcurrentmarker', route.weatherdata.weatherShipActual.wid, 47);
-			rotateVesselAndVesselWeatherIndicator('ghostship', 'vesselwavemarker', route.weatherdata.weatherShipActual.wad, 74);
-			rotateVesselAndVesselWeatherIndicator('ghostship', 'vesselwindmarker', route.weatherdata.weatherShipActual.cud, 74);
+			rotateVesselAndVesselWeatherIndicator('ghostvessel', 'currentmarker', route.weatherdata.ghostvessel.wid, 47);
+			rotateVesselAndVesselWeatherIndicator('ghostvessel', 'wavemarker', route.weatherdata.ghostvessel.wad, 74);
+			rotateVesselAndVesselWeatherIndicator('ghostvessel', 'windmarker', route.weatherdata.ghostvessel.cud, 74);
+			//rotateVesselAndVesselWeatherIndicator('vesselactual', 'vesselcurrentmarker', route.weatherdata.ghostvessel.wid, 47);
+			//rotateVesselAndVesselWeatherIndicator('vesselactual', 'vesselwavemarker', route.weatherdata.ghostvessel.wad, 74);
+			//rotateVesselAndVesselWeatherIndicator('vesselactual', 'vesselwindmarker', route.weatherdata.ghostvessel.cud, 74);
 		}
-		function rotateMapShipIcons() {
+		function rotateMapVesselIcon(vessel, rotation) { //rotates ghostvessel and vesselactual on a route leg according to its angle and direction
+			//try{
+			//console.log("rotating:",vessel);
+			//mapSource.getFeatureById("ROUTESHIPMARKER_" + vessel).getStyle().getImage().setRotation(rotation);
+			//}catch(ExceptionNoVessel){/*Do nothing if vesssel does not exist*/}
 		}
 
 
-		var rotCounter = 0;
-		function rotatetestfunc() {
-			rotCounter += 2;
-			if (rotCounter > 360) rotCounter = 0 
+		function rotateVesselTimerFunction() {
+			if (mapRenderComplete) {
+				//console.log("rotating:vesselactual:", CompassHeadingActual);
+				mapSource.getFeatureById("ROUTESHIPMARKER_vesselactual").getStyle().getImage().setRotation(degToRad(CompassHeadingActual));
+				mapSource.changed();
+			}
 		}
-		var rotatetesttimer = setInterval(function () { rotatetestfunc() }, 30);
+		var rotateVesselTimerTimer = setInterval(function () { rotateVesselTimerFunction() }, 100);
+
+
+
+
+		//var rotCounter = 0;
+		//function rotatetestfunc() {
+		//	rotCounter += 2;
+		//	if (rotCounter > 360) rotCounter = 0 
+		//	mapSource.getFeatureById("ghostvessel_currentmarker").getStyle().getImage().setRotation(degToRad(rotCounter));
+		//	//mapSource.getFeatureById("ROUTESHIPMARKER_vesselactual").getStyle().getImage().setRotation(degToRad(rotCounter));
+		//}
+		//var rotatetesttimer = setInterval(function () { rotatetestfunc() }, 30);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1546,6 +1352,16 @@
 			var lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
 			var lon = lonlat[0];
 			var lat = lonlat[1];
+
+			//for (var i = 0; i != route.waypoints.length - 1; i++) {
+			//	var coords = [];
+			//	if (i < route.waypoints.length) {
+			//		var start = [route.waypoints[i].lon, route.waypoints[i].lat];
+			//		var end = [route.waypoints[i + 1].lon, route.waypoints[i + 1].lat];
+			//		var rotation = turf.bearing(start, end);
+			//		console.log("rotation of leg:", i, " is", rotation);
+			//	}
+			//}
 
 			//$('#WORBarShipIconContainer').animate({
 			//		left: "+=50",
@@ -1562,7 +1378,6 @@
 			if (feature && feature.get('name')) name = feature.get("name");
 			if (feature && feature.get('type')) type = feature.get("type");
 			if (feature && feature.get('routeLegNumber')) number = feature.get("routeLegNumber");
-
 			//user clicks on routeWORM
 			if (feature && feature.get('type')) {
 				if (feature.get('type').indexOf('routeWORM') > -1) {
@@ -1635,7 +1450,7 @@
 			var startDotLeft = 0;
 			var endDotLeft = 0;
 
-
+			rotateWeatherIndicators();
 			//console.log("Zoom level:" + zoomlvl);
 
 			//loop through all layers to rescale route items so they dont fill the entire area
