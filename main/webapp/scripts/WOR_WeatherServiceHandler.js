@@ -5,7 +5,6 @@
 
 
 getWeatherDataAsync = function (request, time, eta, lonlat, lonlat2, datatypes) {
-
 	function rendertimeformat(tm) {
 		if (tm && tm != "") return tm.toISOString().substring(0, tm.toISOString().length - 4) + "000+0000";
 	}
@@ -25,10 +24,10 @@ getWeatherDataAsync = function (request, time, eta, lonlat, lonlat2, datatypes) 
 	var retsuccess = false;
 	var retdata;
 
-	if (request == "point" || request == "ghostvessel") { //an area consists of many points, handled in backend
+	if (request == "point" || request == "ghostvessel" || request == "vesselactual") { //an area consists of many points, handled in backend
 		tnow += rendertimeformat(time);
 		var now = new Date();
-		now.setTime(now.getTime() + 10000); //add 10 seconds to satisfy weather service requirements
+		now.setTime(now.getTime() + (1000*60*10)); //add 10 minutes to satisfy weather service requirements
 		teta += rendertimeformat(now);
 		wp2 += lonlat[0] + 0.0001 + "," + lonlat[1]; //add a few metres to the coords to satisfy requirements
 	} else if (request == "line") {
@@ -43,18 +42,19 @@ getWeatherDataAsync = function (request, time, eta, lonlat, lonlat2, datatypes) 
 
 	var req = "?mssi=" + mssi;
 	req += requesttype; //
-	(!datatypes || datatypes == "") ? req += data + "\'current\',\'wave\',\'wind\'" : req += data + datatypes; //types of weather data requested. Can be manually set. Used for area if wind only is needed.
+	(!datatypes || datatypes == "") ? req += data + "\'sealevel\',\'density\',\'current\',\'wave\',\'wind\'" : req += data + datatypes; //types of weather data requested. Can be manually set. Used for area if wind only is needed.
 	req += dt;  //resolution always lowest for single points
 	req += wp; //position as point
 	req += wp2; //
 	req += tnow.replace("+", "%2B"); //time at now - plus sign is regarded as space, will have issues when encoding if not encoded now.
 	req += teta.replace("+", "%2B"); //time at ETA
+	console.log("req:",req);
 
 	$.ajax({
 		cache: false,
 		type: "POST",
 		crossDomain: true,
-		url: "http://roland.beeres.dk/wor/worservice/handler.ashx",
+		url: "https://beeres.dk/wor/worservice/handler.ashx",
 		data: req,
 		dataType: "text",
 		crossDomain: true,
@@ -62,6 +62,8 @@ getWeatherDataAsync = function (request, time, eta, lonlat, lonlat2, datatypes) 
 		success: function (data) {
 			try {
 				data = JSON.parse(data);
+				console.log("request:", request, "data:", data);
+				//console.log("request:", request, "current data:", data.metocForecast.forecasts[0]["current-dir"].forecast);
 			} catch (ExceptionDataParseError) {
 				console.log("Returned data is not JSON!\ndata:", data);
 			}
@@ -87,26 +89,71 @@ getWeatherDataAsync = function (request, time, eta, lonlat, lonlat2, datatypes) 
 
 
 weatherDataCleaner = function (data, GPSLocation, request) { //type: point, leg, area
-	try{
+	var winddirection, windspeed, waveheight, wavedirection, currentdirection, currentspeed;
 
-		var wid = Math.round(data.metocForecast.forecasts[0]["wind-dir"].forecast * 10) / 10;
-		var wis = Math.round(data.metocForecast.forecasts[0]["wind-speed"].forecast * 10) / 10;
-		var wah = Math.round(data.metocForecast.forecasts[0]["wave-height"].forecast * 10) / 10;
-		var wad = Math.round(data.metocForecast.forecasts[0]["wave-dir"].forecast * 10) / 10;
-		var cud = Math.round(data.metocForecast.forecasts[0]["current-dir"].forecast * 10) / 10;
-		var cus = Math.round(data.metocForecast.forecasts[0]["current-speed"].forecast * 10) / 10;
+	//WIND
+	try {
+		winddirection = Math.round(data.metocForecast.forecasts[0]["wind-dir"].forecast * 10) / 10
+	} catch (ExceptionNoWindDirection) {
+		winddirection = 0
+	};
+	try {
+		windspeed = Math.round(data.metocForecast.forecasts[0]["wind-speed"].forecast * 10) / 10
+	} catch (ExceptionNoWindSpeed) {
+		windspeed = 0
+	};
 
-		//console.log("wether data fetched:", request, data);
+	//WAVE
+	try {
+		waveheight = Math.round(data.metocForecast.forecasts[0]["wave-height"].forecast * 10) / 10
+	} catch (ExceptionNoWaveHeight) {
+		waveheight = 0
+	};
+	try {
+		wavedirection = Math.round(data.metocForecast.forecasts[0]["wave-dir"].forecast * 10) / 10
+	} catch (ExceptionNoWaveHeight) {
+		wavedirection = 0
+	};
 
-		//put weather into route object
-		if (request == "ghostvessel") { //time projected vessel
-			route.weatherdata.ghostvessel.wid = wid;
-			route.weatherdata.ghostvessel.wis = wis;
-			route.weatherdata.ghostvessel.wah = wah;
-			route.weatherdata.ghostvessel.wad = wad;
-			route.weatherdata.ghostvessel.cud = cud;
-			route.weatherdata.ghostvessel.cus = cus;
-		}
-		weatherFetchComplete = true;
-	}catch(ExceptionNoData){}
+	//CURRENT
+	try {
+		currentdirection = Math.round(data.metocForecast.forecasts[0]["current-dir"].forecast * 10) / 10
+	} catch (ExceptionNoWaveHeight) {
+		currentdirection = 0
+	};
+	try {
+		currentspeed = Math.round(data.metocForecast.forecasts[0]["current-speed"].forecast * 10) / 10
+	} catch (ExceptionNoWaveHeight) {
+		currentspeed = 0
+	};
+
+
+
+	//put weather into route object - in "WOR_declarations.js"
+	if (request == "ghostvessel") { //time projected vessel
+		if (winddirection != null) route.weatherdata.ghostvessel.winddirection = winddirection;
+		if (windspeed != null) route.weatherdata.ghostvessel.windspeed = windspeed;
+		if (waveheight != null) route.weatherdata.ghostvessel.waveheight = waveheight;
+		if (wavedirection != null) route.weatherdata.ghostvessel.wavedirection = wavedirection;
+		if (currentdirection != null) route.weatherdata.ghostvessel.currentdirection = currentdirection;
+		if (currentspeed != null) route.weatherdata.ghostvessel.currentspeed = currentspeed;
+	} else if (request == "vesselactual") { //real vessel
+		if (winddirection != null) route.weatherdata.vesselactual.winddirection = winddirection;
+		if (windspeed != null) route.weatherdata.vesselactual.windspeed = windspeed;
+		if (waveheight != null) route.weatherdata.vesselactual.waveheight = waveheight;
+		if (wavedirection != null) route.weatherdata.vesselactual.wavedirection = wavedirection;
+		if (currentdirection != null) route.weatherdata.vesselactual.currentdirection = currentdirection;
+		if (currentspeed != null) route.weatherdata.vesselactual.currentspeed = currentspeed;
+	} else if (request == "clickmarker") { //clicked location on map
+		if (winddirection != null) route.weatherdata.clickmarker.winddirection = winddirection;
+		if (windspeed != null) route.weatherdata.clickmarker.windspeed = windspeed;
+		if (waveheight != null) route.weatherdata.clickmarker.waveheight = waveheight;
+		if (wavedirection != null) route.weatherdata.clickmarker.wavedirection = wavedirection;
+		if (currentdirection != null) route.weatherdata.clickmarker.currentdirection = currentdirection;
+		if (currentspeed != null) route.weatherdata.clickmarker.currentspeed = currentspeed;
+	}
+	weatherFetchComplete = true;
+	rotateWeatherIndicators();
+	try {
+	} catch (ExceptionNoData) { }
 }

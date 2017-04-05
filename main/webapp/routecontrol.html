@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>BW - WORM - prototype</title>
+	<link rel="stylesheet" href="css/ol.css" type="text/css">
+	<!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
+	<script src="scripts/ol.js"></script>
+	<script src="scripts/jquery.min.js"></script> <!-- still used in the menu dropdowns -->
+	<script src="scripts/draggabilly.pkgd.min.js"></script>
+	<link rel="stylesheet" href="css/bootstrap.min.css"><!-- For dragging - has an angular directive at:https://github.com/Jimdo/angular-draggabilly -->
+	<link rel="stylesheet" href="css/WeatherOnRoute.css" />
+	<script src="scripts/turf.min.js"></script>
+	<script src="scripts/WOR_declarations.js"></script>
+	<script src="scripts/WOR_workfunctions.js"></script>
+	<script src="scripts/WOR_WeatherServiceHandler.js"></script> <!-- Handles communication with weather service provider - returns data to route object-->
+	<script src="scripts/WOR_mapsetup.js"></script>
+	<script src="scripts/WOR_toolbar.js"></script>
+	<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
+	<meta name="msapplication-tap-highlight" content="no" />
+
+</head>
+<body>
+
+
+
+	<div id="map" class="map" style="z-index: 0;height:100%;width:100%;"></div>
+
+	<div id="logoDiv" class="" style="position:absolute;left:60px;top:9px;height:auto;width:20%;min-width:240px;background:#ffffff;opacity:0.9;border-radius:7px;cursor:pointer;">
+		<img src="images/DMA_logo_english.png" style="position:relative;left:5%;top:5px;width:90%;">
+		<div style="position:relative;top:-10px;left:5%;width:90%;height:auto;text-align:center;">
+			<br />
+			Weather On Route prototype v.0.4
+		</div>
+	</div>
+
+	<div id="containerDiv" class="hide" style="position:absolute;left:0px;top:0px;height:100%;width:100%;">
+		<div id="popup" style="position:absolute;left:5%;top:5%;height:90%;width:90%;background-color:#ffffff;border-radius:14px;overflow:hidden;">
+
+			<br><br>
+			<div style="position:absolute;top:2%;left:2%;width:96%;height:95%;background:#ffffff;overflow-y:scroll;">
+				<div style="position:relative;top:0px;left:0px;width:100%;height:20px;text-align:center;background:#ffffff;font-size:20px;">
+					Weather On Route Marker (WORM)
+				</div>
+				<img src="images/WOR_iconexample2.png" style="position:relative;left:26%;top:20px;width:50%;">
+				<img src="images/BW_WOR_timelineMarker_small.png" style="position:relative;left:2%;top:40px;width:96%;">
+				<div style="position:relative;top:20px;left:0px;width:100%;height:auto;text-align:left;background:#ffffff;font-size:0.8em;">
+					The WORM is an experimental design to simplify the display of 6 weather related points of data in single, easily interpretable, monochrome symbol.
+					<br><br>
+					<ol>
+						<li>Wind direction (standard wind arrow)</li>
+						<li>Wind speed (m/s)</li>
+						<li>Wave direction</li>
+						<li>Wave height (mean significant height in metres with one decimal)</li>
+						<li>Current direction</li>
+						<li>Current speed (knots with one decimal)</li>
+					</ol>
+				</div>
+				<br>
+				<div style="position:relative;top:0px;left:0px;width:100%;height:auto;text-align:left;background:#ffffff;font-size:0.8em;">
+					Derivation of symbolism:
+					<ul>
+						<li>Wave symbol: high contrast triangles on the outside circle - "waves are <u><b>on</b></u> the water".</li>
+						<li>Current symbol: Solid triangle inside the circle - "Current is <u><b>under</b></u> the water".</li>
+						<li>Wind arrow symbol: - the reference to integrate the wave and current symbols, without changing the existing standard.</li>
+					</ul>
+					Development notes:
+					<ul>
+						<li>
+							This may or may not be the final form of the WORM. Any constructive input is welcome. Please email your suggestion to <b>rob@dma.dk</b>
+						</li>
+						<li>
+							This prototype only encompasses the concept for the WORM and does not represent the Weather On Route service as a whole.
+						</li>
+						<li>
+							<strong>"vesselactual"</strong> is the designation of the vessel in actual time and actual location - the vessel assumed this program is run from.
+						</li>
+						<li>
+							<strong>"ghostvessel"</strong> is the designation of the virtual vessel projected in time and location.
+						</li>
+					</ul>
+
+					Version 0.3 notes:
+					<ul>
+						<li>Ship icon added to map.</li>
+						<li>Route direction on map (E/W) changes bar direction accordingly on control bar, as left/right.</li>
+						<li>Added map ship icon heading compass</li>
+						<li>Weather service communcation added</li>
+					</ul>
+
+					Version 0.4 notes:
+					<ul>
+						<li>Modified current arrow to make more obvious</li>
+						<li>Locked ship and weather icons to map so rotating displays correct weather directions</li>
+						<li>Aligned font of vessel WORM correctly</li>
+						<li>Placed windarrow on top of ship</li>
+						<li>Changed ajax call to private server to make prototype for BW service against existing DMI</li>
+						<li>Made initial request/response work for prototype ajax</li>
+						<li>Polished ajax call as a function for all single point weather query</li>
+						<li>Extracted functions from main html to ease pending integration with angular</li>
+						<li>Added minZoom to map to prevent infinite zoom out</li>
+						<li>Added vesselactual</li>
+						<li>Made vesselactual GPS work if available</li>
+						<li>Made compassheading for vesselactual if available</li>
+					</ul>
+
+					Version 0.5 notes:
+					<ul>
+						<li>Made weather service call for vesselactual</li>
+						<li>Made vesselWORM scale setting global, for each separate vessel and made ghostvessel smaller </li>
+						<li>WORM indicators not used (not returned weather data) are hidden by scaling them to 0, then reverting to instanciated scale to reappear</li>
+						<li></li>
+						<li></li>
+					</ul>
+
+					<!--Version 0. notes:
+					<ul>
+						<li>template..</li>
+						<li></li>
+						<li></li>
+						<li></li>
+						<li></li>
+					</ul>-->
+
+
+				</div>
+				<div style="position:absolute;top:0%;left:3%;width:20%;height:100px;background:#ffffff;overflow:hidden;">
+					<img src="images/DMA_logo_english.png" style="position:relative;left:0px;top:20px;height:auto;width:90%;">
+				</div>
+			</div>
+		</div>
+	</div>
+
+
+
+	<script>
+		
+		// Show/hide the information window. 
+		$('#containerDiv').on('click', function (evt) {
+			$('#containerDiv').addClass('hide');
+		});
+		$('#logoDiv').on('click', function (evt) {
+			$('#containerDiv').removeClass('hide');
+		});
+
+
+		/*
+
+		Notes:
+		Windspeed is metres/second - Wind direction is in degrees
+		Temperatures are always Celcius
+		Current speeds are always Knots - Current direction is in degrees
+		Legspeeds are in knots
+		"Actual" means "this entity, now". A ship with a weather reading at its current time would be designated with "actual", so no misunderstanding can arise from a time projected location change.
+
+
+		CODE SECTION OVERVIEW:
+		Manipulation handles
+			math
+
+		Definitions
+			global vars
+			mock RTZ object
+			Weather On Route Marker (WORM) generator
+
+		Content building
+			Route and Points
+			Weather On Route Marker (WORM)
+
+		Map init - one layer only - 
+
+		User interaction
+			mousemove
+			mouseover
+			mouseclick
+			map zoom trigger
+
+
+		TODO:
+		Determine a number of WOR Markers (WORM) to place (2/3) of route markers, maximum & minimum
+		Choose which routemarkers will be used for WORMs so they are not too close to each other
+		Place positions of chosen legs into object as pairs
+		Simulate weather conditions for markers (Windspeed, winddirection, currentspeed, currentdirection, wavedirection, waveheight.) (No water depth yet.)
+		Place generate marker and push into object
+		Make thick invisible line over route, when clicked, displays WORM for that location, in the RTZ ETA timeframe.
+		when user clicks anywhere on map outside of route, generate a WORM and populate with data.
+		rescale WOR images to fit proportinal with correct to scale with existing windmarkers
+
+
+		QUESTION AND MISSING
+		1: Does a click on land - request for weather data from DMI, display water depth = 0 or what?
+
+
+		*/
+
+
+
+		//alert("make ghostvessel WORM yellow, add clicakable WORM on map again, using new methods, debug no weather returned issue, make routedot smaller when in extent of a vesselWORM.");
+		//alert("make shipicon actually drag ghostvessel on route");
+
+		$(document).ready(function () {
+
+
+			var time = new Date();
+			time.setTime(time.getTime());
+
+
+			//Generate ghostvessel and vesselactual - WORM is added to vessel afterwards
+			mapSource.addFeatures(generateShip('ghostvessel', route.waypoints[0].lon, route.waypoints[0].lat, 1));
+			mapSource.addFeatures(generateVesselWORM('ghostvessel', route.waypoints[0].lon, route.waypoints[0].lat, 1, route.weatherdata.ghostvessel.winddirection, route.weatherdata.ghostvessel.windspeed, route.weatherdata.ghostvessel.currentdirection, route.weatherdata.ghostvessel.currentspeed, route.weatherdata.ghostvessel.wavedirection, route.weatherdata.ghostvessel.waveheight));
+			getWeatherDataAsync('ghostvessel', time, null, [route.waypoints[0].lon, route.waypoints[0].lat]); //get weather data for route start, right now.
+
+
+			//useGPS = false;
+			if (useGPS) {
+				//refreshGPSCoordinates();
+				mapSource.addFeatures(generateShip('vesselactual', GPSLocationActual[1], GPSLocationActual[0], 1));
+				mapSource.addFeatures(generateVesselWORM('vesselactual', route.waypoints[0].lon, route.waypoints[0].lat, 1, route.weatherdata.vesselactual.winddirection, route.weatherdata.vesselactual.windspeed, route.weatherdata.vesselactual.currentdirection, route.weatherdata.vesselactual.currentspeed, route.weatherdata.vesselactual.wavedirection, route.weatherdata.vesselactual.waveheight));
+				//getWeatherDataAsync('vesselactual', time, null, GPSLocationActual); //get current location weather right now.
+			} else {
+				GPSLocationActual[0] = route.waypoints[0].lon; //assume at start of route if no GPS
+				GPSLocationActual[1] = route.waypoints[0].lat;
+			}
+
+
+
+		});
+
+
+
+
+
+		// MAP INIT
+		//**************************************************************
+		//**************************************************************
+
+
+		var routeLayer = generateRouteLayer();
+
+		var routeDotsHandle = createRouteStartEndDots(); //start and end dots
+		var routeDotsHandle2 = createRouteDots(); //all dots along the line except start and end
+		var routeHandle = createRouteLegs(); //all legs along the line as features
+		
+
+		var map = new ol.Map({
+			loadTilesWhileInteracting: true,
+			target: 'map',
+			controls: ol.control.defaults({
+				attributionOptions: /** @type {olx.control.AttributionOptions} */ ({
+					collapsible: false
+				})
+			}).extend([
+			new WORToolbarControl()
+			]),
+			layers: [
+			new ol.layer.Tile({
+				source: new ol.source.OSM()
+			}), routeLayer
+		],
+			view: new ol.View({
+				center: ol.proj.transform([12.68383978917871, 55.3159902246746], 'EPSG:4326', 'EPSG:3857'),
+				zoom: 8,
+				minZoom: 2,
+			})
+		});
+
+		var mapSource = routeLayer.getSource();
+		mapSource.addFeatures(routeHandle);
+		mapSource.addFeatures(routeDotsHandle);
+		mapSource.addFeatures(routeDotsHandle2);
+		//mapSource.addFeatures(WORMarker);
+
+
+
+		WORDetectRouteDirection = function () { //returns left or right pending which direction the WORBar should be rendered according to overall direction of the plotted route
+			var startDotData = WORReturnFeatureData("RouteStartDot");
+			var endDotData = WORReturnFeatureData("RouteEndDot");
+			if (startDotData && endDotData) {
+				if ((startDotData.pixelleft - endDotData.pixelleft) * 100000 > 0) {
+					return 'right'; //right to left
+				} else {
+					return 'left'; //left to right
+				}
+			}
+
+		}
+
+
+		//When map is, do math based on the route - this makes the math independent of the RTZ.
+		renderWORControls = function (direction) {
+			//Get total length of the route and each leg length in nautical miles
+			$('#WORBarRouteMainContainer').remove();
+			if (!direction) direction = "left";
+			var routetotallength = 0; //outputs in nautical miles.
+			var routelengtharray = [];
+			for (var i = 0; i != route.waypoints.length - 1; i++) {
+				var lonlat1 = [];
+				lonlat1.push(route.waypoints[i].lon);
+				lonlat1.push(route.waypoints[i].lat);
+				var lonlat2 = [];
+				lonlat2.push(route.waypoints[i + 1].lon);
+				lonlat2.push(route.waypoints[i + 1].lat);
+				routelengtharray[i] = getDistanceFromCoords(lonlat1, lonlat2)
+				routetotallength = routetotallength + routelengtharray[i];
+			}
+
+			//Draw and append the routebar to the WORbar
+			WORRouteControl(routelengtharray, direction);
+
+
+			//$('#WORBarShipIconContainer').animate({
+			//		left: "+=50",
+			//	}, 500, function () {
+			//		// Animation complete.
+			//	});
+		}
+		map.once('postrender', function (event) {
+			mapRenderComplete = true;
+			renderWORControls(WORDetectRouteDirection());
+		});
+
+
+
+
+
+		//generateWORM('identifier', 'type', lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, wavestr));
+
+		//source.addFeatures(generateWORM('_routeWORM1', 'routeWORM1', 11.85311453316363, 54.5174182081806, 0.9, 120, 20, 190, 2, 125, 1.5));
+		//source.addFeatures(generateWORM('_routeWORM2', 'routeWORM2', 12.710055233576151, 54.826923606718935, 0.9, 125, 25, 200, 1, 130, 2));
+		//source.addFeatures(generateWORM('_routeWORM3', 'routeWORM3', 13.68084906652246, 55.12163532513645, 0.9, 130, 30, 180, 3, 135, 2.5));
+
+
+		//**************************************************************
+		//**************************************************************
+		//MAP INIT END
+
+
+
+
+
+		//**************************************************************
+		// WORM PLOTTING & PLACEMENT
+
+		WORReturnFeatureData = function (featurename) { //returns data on a specific feature - requires that it has a feature.name
+			var retval = {};
+			map.getLayers().forEach(function (layer, i) {
+				if (layer instanceof ol.layer.Vector) {
+					var prop = layer.getProperties();
+					var src = layer.getSource();
+					if (src) {
+						src.forEachFeature(function (feature) { //loop through each feature
+							var name = feature.get("name");
+							if (featurename == name) {
+
+								retval.aaa = "You can only return data which has been set when creating the feature, styling it afterwards does not add the feature properties.";
+								retval.name = name;
+								retval.rotation = feature.get("rotation");
+								retval.type = feature.get("type");
+								retval.lon = feature.get("lon");
+								retval.lat = feature.get("lat");
+								retval.src = feature.get("src");
+								retval.scale = feature.get("scale");
+								retval.extent = feature.getGeometry().getExtent();
+								retval.routeDotNumber = feature.get("routeDotNumber");
+
+								var coordinate = [];
+								coordinate.push(feature.get("lon"));
+								coordinate.push(feature.get("lat"));
+								retval.coordinate = coordinate;
+
+								//get defined position - can only be returned if is defined at feature creation
+								try{ //map not loaded yet or feature has no position
+									var pixel = map.getPixelFromCoordinate(coordinate);
+									retval.pixelleft = pixel[0];
+									retval.pixeltop = pixel[1];
+								}catch(ExceptionNoPixel){}
+							} else {
+							}
+						});
+					}
+				}
+			});
+			return retval;
+
+		}
+
+
+
+
+		//END WORM PLOTTING & PLACEMENT
+		//**************************************************************
+		//**************************************************************
+		// SHIP ON ROUTE
+		// Creates ship on the map following the route. There are 2 ships, first is actual ship according to timeplan checked with current GPS if available, painted on map to display current location.
+		// Second ship is the timeprojected ghost icon which shows the weather information at that location at that time, as expected to be on the route.
+		// TODO deviation of route handling - what to do, warnings etc.
+
+		var ghostvesselMarker; // time projected ship
+		var ShipMarker; //actual ship - placed over ghostvessel
+
+		var retRouteShipStyle = function (shiptype, scale, angle, lon, lat) { //shiptype: standard or ghost
+			var opacity = 100;
+			if (!scale) scale = 1;
+			if (!angle) angle = 180;
+			if (shiptype && shiptype == 'standard') { /*do nothing*/ } else { opacity = 60;}
+			var ShipStyle = new ol.style.Style({
+				zIndex: 10,
+				image: new ol.style.Icon(({
+					opacity: 0.5,
+					rotation: degToRad(mapSource.getFeatureById("RouteLeg0").get("legrotation")),
+					anchor: [(0.50), (0.50)],
+					anchorXUnits: 'fraction',
+					anchorYUnits: 'fraction',
+					src: 'images/vessel_topview_containership.png', //needs path and windstr to paint correct arrow
+					scale: scale,
+					//opacity: (opacity * 100),
+					lon: lon,
+					lat: lat,
+					rotateWithView: true
+				}))
+			});
+			return ShipStyle;
+		}
+		retRouteCompassStyle = function (shiptype, scale, lon, lat) { //route start end style - scales according to zoom level in USER INTERACTION section
+			var ShipStyle = new ol.style.Style({
+				zIndex: 20,
+				image: new ol.style.Icon(({
+					//rotation: degToRad(60),
+					opacity: 1,
+					anchor: [(0.50), (0.50)],
+					rotation: degToRad(mapSource.getFeatureById("RouteLeg0").get("legrotation")),
+					anchorXUnits: 'fraction',
+					anchorYUnits: 'fraction',
+					src: 'images/shipIconCompass_Red.png', //needs path and windstr to paint correct arrow
+					scale: ((shiptype == "ghostvessel") ? route.mapfeatures.ghostvessel.compassscale : route.mapfeatures.vesselactual.compassscale) * scale,
+					rotateWithView: true,
+					//opacity: (opacity * 100),
+					//lon: lon,
+					//lat: lat,
+				}))
+			});
+			return ShipStyle;	//var compassStyle = new ol.style.Style({
+
+		};
+
+
+		var generateShip = function (shiptype, lon, lat, scale) { //type is given so it can be styled, identifier must be unique.
+			if (!lon || !lat) { lon = 0; lat = 0; }
+			var angle = 0;
+			if (shiptype) {
+				var shipFeature = new ol.Feature({ //SHIPICON
+					geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
+					name: shiptype,
+					type: 'ROUTESHIPMARKER',
+					src: 'images/vessel_topview_containership.png',
+					lon: lon,
+					lat: lat,
+					rotation: 0,
+					//id: 'ROUTESHIPMARKER_' + shiptype,
+					rotateWithView: true
+				});
+				shipFeature.setStyle(retRouteShipStyle(shiptype, scale, angle, lon, lat)); 
+				//shipFeature.setId(shiptype);
+				//shipFeature.setStyle(retRouteShipStyle(shiptype, scale, angle));
+				shipFeature.setId('ROUTESHIPMARKER_' + shiptype);
+
+				var shipCompassFeature = new ol.Feature({
+					geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
+					name: 'COMPASS_' + shiptype,
+					type: 'COMPASS',
+					src: 'images/shipIconCompass_Red.png',
+					id: 'COMPASS_' + shiptype,
+					lon: lon,
+					lat: lat,
+					rotateWithView: true,
+				});
+				shipCompassFeature.setId('COMPASS_' + shiptype);
+				shipCompassFeature.setStyle(retRouteCompassStyle(shiptype, scale, lon, lat));
+				return [shipFeature, shipCompassFeature];
+			}
+			console.log("No shiptype!");
+		}
+
+
+
+		var retNoStyle = function () {
+			console.log("nostyling");
+			var WORMNoStyle = new ol.style.Style({
+				image: new ol.style.Icon({
+					opacity: 0.0,
+					src: '', 
+				}),
+				text: new ol.style.Text({
+					font: '12px helvetica,sans-serif',
+					text: (''),
+				})
+			});
+			return WORMNoStyle;
+		}
+
+
+
+
+
+
+		//Weather On Route Marker (WORM) generator
+		//var WORMWaveparams = { text: '2,5', rot: -135, anchor: [0.52, 0.25] };
+		var retVesselWORMWaveStyle = function (type, scale, wavedir, wavestr) {
+			if (!scale) scale = 1;
+			if (!wavedir) wavedir = 180;
+			if (!wavestr) wavestr = 0;
+			var WORMWaveStyle = new ol.style.Style({
+				image: new ol.style.Icon({
+					opacity: 0.75,
+					rotation: degToRad(wavedir), //wavepointer is pointing lowerright
+					anchor: [(0.5), (0.5)],
+					anchorXUnits: 'fraction',
+					anchorYUnits: 'fraction',
+					src: 'images/WOR_vessel_backdropcircle.png', //needs path
+					scale: ((type == "ghostvessel") ? route.mapfeatures.ghostvessel.wavemarkerscale : route.mapfeatures.vesselactual.wavemarkerscale) * scale,
+					rotateWithView: true
+				}),
+				text: new ol.style.Text({
+					font: '12px helvetica,sans-serif',
+					text: ('' + wavestr),
+					offsetX: calcSinCosFromAngle('x', wavedir, (36 * scale)),
+					offsetY: calcSinCosFromAngle('y', wavedir, (36 * scale)),
+					scale: (1 * scale),
+					rotateWithView: true,
+
+					//rotation: 360 * rnd * Math.PI / 180,
+					fill: new ol.style.Fill({
+						color: '#000'
+					}),
+					stroke: new ol.style.Stroke({
+						color: '#fff',
+						width: 1
+					})
+				})
+			});
+			return WORMWaveStyle;
+		}
+
+
+		//var WORMCurrentparams = { text: '2', rot: -135, anchor:  };
+		var retVesselWORMCurrentStyle = function (type, scale, currdir, currstr) {
+			if (!scale) scale = 1;
+			if (!currdir) currdir = 180;
+			if (!currstr) currstr = 0;
+			currdir = 85;
+			var WORMCurrentStyle = new ol.style.Style({
+				image: new ol.style.Icon({
+					opacity: 1,
+					rotation: degToRad(currdir), //currentpointer is pointing lowerright
+					anchor: [0.5, 0.5],
+					anchorXUnits: 'fraction',
+					anchorYUnits: 'fraction',
+					src: 'images/WOR_innercircle.png', //needs path
+					scale: ((type=="ghostvessel") ? route.mapfeatures.ghostvessel.currentmarkerscale : route.mapfeatures.vesselactual.currentmarkerscale)*scale,
+					rotateWithView: true
+				}),
+				text: new ol.style.Text({
+					font: '10px helvetica,sans-serif',
+					text: ('' + currstr),
+					offsetX: calcSinCosFromAngle('x', currdir, (22 * scale)),
+					offsetY: calcSinCosFromAngle('y', currdir, (22 * scale)),
+					scale: (1 * scale),
+					rotateWithView: true,
+					//rotation: 360 * rnd * Math.PI / 180,
+					fill: new ol.style.Fill({
+						color: '#000'
+					}),
+					stroke: new ol.style.Stroke({
+						color: '#fff',
+						width: 1
+					})
+				})
+			});
+			return WORMCurrentStyle;
+		}
+
+
+		//var WORMWindparams = { rot: -135, anchor: [0.5, 0.5] };
+		var retVesselWORMWindStyle = function (type, scale, winddir, windstr) {
+			if (!scale) scale = 1;
+			if (!winddir) winddir = 180;
+			var WORMWindStyle = new ol.style.Style({ //WINDARROW
+				zIndex: 20,
+				image: new ol.style.Icon(({
+					opacity: 1,
+					anchor: [(0.52), (0.30)],
+					anchorXUnits: 'fraction',
+					anchorYUnits: 'fraction',
+					src: 'images/wind/mark005.png', //needs path and windstr to paint correct arrow according to windspeed
+					scale: ((type == "ghostvessel") ? route.mapfeatures.ghostvessel.windmarkerscale : route.mapfeatures.vesselactual.windmarkerscale)*scale,
+					rotateWithView: true,
+					rotation: degToRad(winddir), //windpointer is straight and points straight down
+				}))
+			});
+			return WORMWindStyle;
+		}
+
+		var generateVesselWORM = function (type, lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, wavestr) { //type is given so it can be styled, identifier must be unique.
+			if (!lon || !lat) { lon = 0; lat = 0; }
+
+
+
+
+
+			var iconFeature = new ol.Feature({ //WAVEARROW
+				geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
+				name: type + '_wavemarker',
+				type: type,
+				lon:lon,
+				lat:lat,
+				scale: ((type=="ghostvessel") ? route.mapfeatures.ghostvessel.wavemarkerscale : route.mapfeatures.vesselactual.wavemarkerscale)*scale,
+				rotateWithView: true,
+				rotation: degToRad(wavedir),
+			});
+
+			iconFeature.setStyle(retVesselWORMWaveStyle(type, scale, wavedir, wavestr)); //generated style
+			iconFeature.setId(type + '_wavemarker');
+
+			//CURRENTARROW
+			var iconFeature2 = new ol.Feature({
+				geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
+				name: type + '_currentmarker',
+				lon: lon,
+				lat: lat,
+				type: type,
+				scale: ((type=="ghostvessel") ? route.mapfeatures.ghostvessel.currentmarkerscale : route.mapfeatures.vesselactual.currentmarkerscale)*scale,
+				src: 'images/WOR_innercircle.png',
+				rotateWithView: true,
+				rotation: degToRad(currdir), //currentpointer is pointing lowerright
+			});
+			iconFeature2.setStyle(retVesselWORMCurrentStyle(scale, currdir, currstr));
+			iconFeature2.setId(type+'_currentmarker');
+
+			//WINDARROW
+			var iconFeature3 = new ol.Feature({
+				geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
+				name: type + '_windmarker',
+				type: type,
+				src: 'images/wind/mark005.png',
+				rotation: degToRad(winddir), 
+				zIndex: 20,
+				scale: ((type == "ghostvessel") ? route.mapfeatures.ghostvessel.windmarkerscale : route.mapfeatures.vesselactual.windmarkerscale) * scale,
+			});
+			iconFeature3.setStyle(retVesselWORMWindStyle(scale, winddir, windstr));
+			iconFeature3.setId(type+'_windmarker');
+
+			return [iconFeature, iconFeature2, iconFeature3];
+		}
+
+
+		// END SHIP ON ROUTE
+		//**************************************************************
+
+
+
+
+
+
+
+
+
+		//**************************************************************
+		// USER INTERACTION - MOUSE & TOUCH
+
+
+		map.on('pointermove', function (evt) {
+			var lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+
+			var feature = map.forEachFeatureAtPixel(evt.pixel,
+			function (feature) {
+				return feature;
+			});
+			var indexOfFeatures = "RouteStartDot, RouteEndDot, routeWORM"
+			if (feature) {
+				if (indexOfFeatures.indexOf(feature.get('name')) > -1) {
+					map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel) ? 'pointer' : '';
+
+				} else if (feature.get('type')) {
+					if (feature.get('type').indexOf('routeWORM') > -1) {
+						map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel) ? 'pointer' : '';
+					}
+				}
+			} else {
+				map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel) ? 'pointer' : '';
+			}
+
+		});
+
+
+
+
+		//Rotates any vessel WORM individually - scaleoffset is manually set
+		function rotateVesselWeatherIndicator(vessel, partialfeatureid, degrees, value, scaleoffset) {
+			//console.log("degrees:", degrees, vessel);
+			if (mapRenderComplete && degrees != undefined && degrees != null && degrees != 0 && degrees != "") {
+				if (!scaleoffset) scaleoffset = 0;
+				var feat = WORReturnFeatureData(vessel + "_" + partialfeatureid);
+				var rot = radToDeg(feat.rotation);
+				var newrot = degToRad(degrees);
+
+
+
+
+				var restorescale = 0;
+				if (vessel == "ghostvessel") { //restore scale - same as making visible
+					if(partialfeatureid == "currentmarker") restorescale = route.mapfeatures.ghostvessel.currentmarkerscale;
+					if(partialfeatureid == "wavemarker") restorescale = route.mapfeatures.ghostvessel.wavemarkerscale;
+					if(partialfeatureid == "windmarker") restorescale = route.mapfeatures.ghostvessel.windmarkerscale;
+				} else if (vessel == "vesselactual") {
+					if(partialfeatureid == "currentmarker") restorescale = route.mapfeatures.vesselactual.currentmarkerscale;
+					if(partialfeatureid == "wavemarker") restorescale = route.mapfeatures.vesselactual.wavemarkerscale;
+					if(partialfeatureid == "windmarker") restorescale = route.mapfeatures.vesselactual.windmarkerscale;
+				}
+				try {
+					console.log(vessel + "_" + partialfeatureid);
+					console.log(restorescale);
+					//mapSource.getFeatureById(vessel + "_" + partialfeatureid).getStyle().getImage().setScale(restorescale);
+					//mapSource.getFeatureById(vessel + "_" + partialfeatureid).getStyle().getImage().setRotation(newrot);
+				} catch (ExceptionNoVesselToRestore) { console.log("ExceptionNoVesselToRestore"); }
+
+
+				//TEXT
+				var radOff = 0.47; //text offset in radians for current and wave indicator
+				var newOffsetX = calcSinCosFromAngle('x', newrot + radOff, (scaleoffset * feat.scale));
+				var newOffsetY = calcSinCosFromAngle('y', newrot + radOff, (scaleoffset * feat.scale));
+				try { //if no text element, ignores with errortrap
+					mapSource.getFeatureById(vessel + "_" + partialfeatureid).getStyle().getText().setText(value);
+					mapSource.getFeatureById(vessel + "_" + partialfeatureid).getStyle().getText().setOffsetX(newOffsetX);
+					mapSource.getFeatureById(vessel + "_" + partialfeatureid).getStyle().getText().setOffsetY(newOffsetY);
+				} catch (rotateExceptionNotext) {
+				}
+				mapSource.changed();
+
+			} else {
+				//no data of that type, so hide the indicator
+				try {
+					mapSource.getFeatureById(vessel + "_" + partialfeatureid).getStyle().getText().setText("");
+					mapSource.getFeatureById(vessel + "_" + partialfeatureid).getStyle().getImage().setScale(0);
+				} catch (ExceptionNoDataNoElement) { }
+			}
+		}
+		function rotateWeatherIndicators() {
+			rotateVesselWeatherIndicator('ghostvessel', 'currentmarker', route.weatherdata.ghostvessel.currentdirection, route.weatherdata.ghostvessel.currentspeed, 47);
+			rotateVesselWeatherIndicator('ghostvessel', 'wavemarker', route.weatherdata.ghostvessel.wavedirection, route.weatherdata.ghostvessel.waveheight, 74);
+			rotateVesselWeatherIndicator('ghostvessel', 'windmarker', route.weatherdata.ghostvessel.winddirection, route.weatherdata.ghostvessel.windspeed, 0);
+			rotateVesselWeatherIndicator('vesselactual', 'currentmarker', route.weatherdata.vesselactual.currentdirection, route.weatherdata.ghostvessel.currentspeed, 47);
+			rotateVesselWeatherIndicator('vesselactual', 'wavemarker', route.weatherdata.vesselactual.wavedirection, route.weatherdata.ghostvessel.waveheight, 74);
+			rotateVesselWeatherIndicator('vesselactual', 'windmarker', route.weatherdata.vesselactual.winddirection, route.weatherdata.ghostvessel.windspeed, 0);
+		}
+		function rotateMapVesselIcon(vessel, rotation) { //rotates ghostvessel and vesselactual on a route leg according to its angle and direction
+			//try{
+			//console.log("rotating:",vessel);
+			//mapSource.getFeatureById("ROUTESHIPMARKER_" + vessel).getStyle().getImage().setRotation(rotation);
+			//}catch(ExceptionNoVessel){/*Do nothing if vesssel does not exist*/}
+		}
+
+
+
+		function vesselactualLocationTimerFunction() {
+			if (mapRenderComplete && useGPS) { //Only run if GPS is active
+				
+				try {//rotate vesselactual according to compass
+					mapSource.getFeatureById("ROUTESHIPMARKER_vesselactual").getStyle().getImage().setRotation(degToRad(-(CompassHeadingActual + CompassHeadingOffset)));
+					mapSource.getFeatureById("COMPASS_vesselactual").getStyle().getImage().setRotation(degToRad(-(CompassHeadingActual + CompassHeadingOffset)));
+					mapSource.changed(); //update map
+				} catch (ExceptionRotateVesselActualError) { console.log("rotate vesselactual failed");/*probably not yet added to map if GPS is disabled*/ }
+
+				//refresh GPS coordinates
+				if (GPSRefreshCounter > GPSRefreshInterval) {
+					GPSRefreshCounter = 0; //reset
+					refreshGPSCoordinates(); //refreshes variable "GPSLocationActual"
+				} else {
+					GPSRefreshCounter += 100;
+				}
+
+				//refresh weather at vesselactual
+				if (weatherRefreshCounter > weatherRefreshInterval) {
+					weatherRefreshCounter = 0; //reset
+					var time = new Date();
+					time.setTime(time.getTime());
+					getWeatherDataAsync('vesselactual', time, null, GPSLocationActual); //get current location weather right now.
+				} else {
+					weatherRefreshCounter += 100;
+				}
+
+			}
+		}
+		var rotateVesselTimerTimer = setInterval(function () { vesselactualLocationTimerFunction() }, 100);
+
+
+
+
+		//var rotCounter = 0;
+		//function rotatetestfunc() {
+		//	rotCounter += 2;
+		//	if (rotCounter > 360) rotCounter = 0 
+		//	mapSource.getFeatureById("ghostvessel_currentmarker").getStyle().getImage().setRotation(degToRad(rotCounter));
+		//	//mapSource.getFeatureById("ROUTESHIPMARKER_vesselactual").getStyle().getImage().setRotation(degToRad(rotCounter));
+		//}
+		//var rotatetesttimer = setInterval(function () { rotatetestfunc() }, 30);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		map.on('click', function (evt) {
+			var lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+			var lon = lonlat[0];
+			var lat = lonlat[1];
+
+			//$('#WORBarShipIconContainer').animate({
+			//		left: "+=50",
+			//	}, 500, function () {
+			//		// Animation complete.
+			//	});
+
+			console.log("Mouse lon:" + lon + " - " + "lat:" + lat);
+
+			var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
+				return feature;
+			});
+			var name, type, number;
+			if (feature && feature.get('name')) name = feature.get("name");
+			if (feature && feature.get('type')) type = feature.get("type");
+			if (feature && feature.get('routeLegNumber')) number = feature.get("routeLegNumber");
+			//user clicks on routeWORM
+			if (feature && feature.get('type')) {
+				if (feature.get('type').indexOf('routeWORM') > -1) {
+					$('#containerDiv').removeClass('hide');
+				}
+			}
+			if (name == "RouteLeg") {
+				console.log("routeleg:", name)//feature.setStyle(RSEstyle());
+				console.log("routeLegNumber:", feature.get("routeLegNumber"))//feature.setStyle(RSEstyle());
+
+			}
+
+			//debug
+			//console.log("Clicked on: " + feature.get('name') + " - Coords:" + feature.get('lon') + "," + feature.get('lat'));
+			//var myPixel = map.getView().calculateExtent(map.getSize())
+			//console.log("mypixel:",myPixel);
+
+			//Place a WORM (feature 'type' == '_usermarker') by moving the existing one at pos 0,0 scaled to 0 or where user last clicked it
+			if (!feature) {
+				map.getLayers().forEach(function (layer, i) {
+					if (layer instanceof ol.layer.Vector) {
+						var src = layer.getSource();
+						if (src) {
+							var randomangle = 1 + Math.floor(Math.random() * 360);
+							var randomangle2 = randomangle + (Math.floor(Math.random() * 30)); //20 degrees offset for wind/waves.
+							var randomangle3 = randomangle + (Math.floor(Math.random() * 90)); //20 degrees offset for wind/waves.
+							var randomvalue = (Math.floor(Math.random() * 30)) / 10;
+							src.forEachFeature(function (feature) { //loop through each feature
+								var name = feature.get("name");
+								var type = feature.get("type");
+
+								if (type && type != '') {
+									if (type == 'clickmarker' && 1==2) {
+										feature.getGeometry().setCoordinates(ol.proj.transform([+lon, +lat], 'EPSG:4326', 'EPSG:3857'));
+
+										if (name == 'WOR_windmarker') {
+											winddir = randomangle * 0.01745329251;
+											windstr = '5';
+											feature.setStyle(retWORMWindStyle(1, winddir, windstr));
+											feature.getStyle().getImage().setRotation(winddir);
+										}
+										if (name == 'WOR_wavemarker') {
+											wavedir = randomangle2 * 0.01745329251;
+											wavestr = '' + getRandomInt(1, 5);
+											feature.setStyle(retWORMWaveStyle(1, wavedir, wavestr));
+											feature.getStyle().getImage().setRotation(wavedir);
+										}
+										if (name == 'WOR_currentmarker') {
+											var currdir = randomangle3 * 0.01745329251;
+											var currstr = '' + getRandomInt(1, 3)
+											feature.setStyle(retWORMCurrentStyle(1, currdir, currstr)); //scale, direction, strength
+											feature.getStyle().getImage().setRotation(currdir);
+										}
+									}
+								}
+							})
+						}
+					}
+				});
+			}
+		});
+
+
+
+
+
+		////ZOOM DETECT - rescale items as needed
+		//map.on("moveend", function (e) {
+		//	var zoomlvl = parseInt(map.getView().getZoom());
+		//	var startDotLeft = 0;
+		//	var endDotLeft = 0;
+
+		//	rotateWeatherIndicators();
+		//	//console.log("Zoom level:" + zoomlvl);
+
+		//	//loop through all layers to rescale route items so they dont fill the entire area
+		//	map.getLayers().forEach(function (layer, i) {
+		//		if (layer instanceof ol.layer.Vector) {
+		//			var prop = layer.getProperties();
+		//			var src = layer.getSource();
+		//			if (src) {
+		//				src.forEachFeature(function (feature) { //loop through each feature
+		//					var name = feature.get("name");
+		//					var type = feature.get("type");
+		//					var src = feature.get("src");
+		//					var styleRouteStartEnd = new ol.style.Style({
+		//						stroke: new ol.style.Stroke({
+		//							color: 'rgba(200,0,0,1)',
+		//							width: zoomlvl * 2
+		//						}),
+		//						fill: new ol.style.Fill({
+		//							color: 'rgba(255, 0, 255, 0.1)'
+		//						})
+		//					});
+
+
+		//					//Detect if features overlap. Use the getextent to see if they overlap. Make array starting with routestartdot and remove all routedots which overlap with the previous dot (start or routedot).
+		//					//if (name && name != '' && name == "RouteDot") {
+		//					//	var pixel
+		//					//	var coordinate = [];
+		//					//	coordinate.push(feature.get("lon"));
+		//					//	coordinate.push(feature.get("lat"));
+		//					//	pixel = map.getPixelFromCoordinate(coordinate);
+
+		//					//	//console.log("extent:", feature.getGeometry().getExtent());
+		//					//	var routeDotNumber = feature.get("routeDotNumber");
+		//					//	//console.log("ROuteDot:", routeDotNumber);
+
+		//					//}
+
+		//					//console.log("Length of startdot to first routedot in metres:", getDistanceFromCoords())
+
+		//					//Manipulate features as needed
+		//					if (name && name != '') {
+		//						if (name == "RouteDot") feature.setStyle(RDstyle());
+		//						if (name == "RouteDotArea") feature.setStyle(RDAreastyle());
+		//						if (name == "RouteStartDot") {
+		//							//feature.setStyle(RouteDotStartStyle());
+		//							//Detect and swap direction of shipicon if start and end have been reversed by rotating map.
+		//							var coodinate = [];
+		//							var pixel
+		//							var coordinate = [];
+		//							coordinate.push(feature.get("lon"));
+		//							coordinate.push(feature.get("lat"));
+		//							pixel = map.getPixelFromCoordinate(coordinate);
+		//							startDotLeft = pixel[0];
+		//						}
+		//						if (name == "RouteEndDot") {
+		//							feature.setStyle(RouteDotEndStyle());
+		//							var pixel
+		//							var coordinate = [];
+		//							coordinate.push(feature.get("lon"));
+		//							coordinate.push(feature.get("lat"));
+		//							pixel = map.getPixelFromCoordinate(coordinate);
+		//							endDotLeft = pixel[0];
+		//						}
+		//						if (name == "RouteStartDot") { //Test if is in view
+		//							//var extent = routeLayer.getSource().getExtent();
+		//							var extent = map.getView().calculateExtent(map.getSize());
+		//							extent = ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326');
+		//							var featureextent = feature.getGeometry().getExtent();
+		//							featureextent = ol.proj.transformExtent(featureextent, 'EPSG:3857', 'EPSG:4326')
+		//						}
+
+		//					}
+		//					if (type && type != '') {
+
+		//						if (type == 'clickmarker') {
+		//							if (zoomlvl > 5) {
+		//								//compensating zoom level magnification to avoid clutter
+		//								if (zoomlvl > 5) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 10));
+		//								if (zoomlvl > 10) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 15));
+		//								if (zoomlvl > 16) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 20));
+		//							} else {
+		//								feature.getStyle().getImage().setScale(0.00001); //hide it when zooming too far out
+		//							}
+		//						} else if (type.indexOf("routeWORM") != -1) {
+		//							if (zoomlvl > 5) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 10));
+		//							if (zoomlvl > 10) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 15));
+		//							if (zoomlvl > 16) feature.getStyle().getImage().setScale(.5 * (zoomlvl / 20));
+		//						}
+		//					}
+		//				})
+		//			}
+		//			renderWORControls(WORDetectRouteDirection()); //rerenders controls to match direction and scaling
+
+		//		}
+		//	});
+
+
+		//})
+
+		// END USER INTERACTION - MOUSE & TOUCH
+		//**************************************************************
+
+	</script>
+</body>
+</html>

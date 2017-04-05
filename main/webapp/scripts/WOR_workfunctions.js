@@ -2,7 +2,7 @@
 
 window.onload = function () { // GEOLOCATION & COMPASS
 
-	//COMPASS
+	//COMPASS - vesselactual rotation is handled by a timer
 	if (window.DeviceOrientationEvent) {
 		// Listen for the deviceorientation event and handle the raw data
 		window.addEventListener('deviceorientation', function (eventData) {
@@ -13,29 +13,22 @@ window.onload = function () { // GEOLOCATION & COMPASS
 			else compassdir = event.alpha;
 			CompassHeadingActual = compassdir;
 		});
-			//rotateMapVesselIcon('vesselactual', CompassHeadingActual);
 	}
+};
 
-
-
+//GPS COORDINATE - handled by same timer as compass, just every 5 sec.
+refreshGPSCoordinates = function () {
 	var startPos;
 	var geoOptions = {
 		maximumAge: 5 * 60 * 1000, //timeout for request return
 	}
 	var geoSuccess = function (position) {
-		startPos = position;
-		var time = new Date();
-		time.setTime(time.getTime());
-		console.log("Current location:", startPos.coords.latitude, ",", startPos.coords.longitude);
-		GPSLocationActual = [startPos.coords.latitude, startPos.coords.longitude]
-		//getWeatherDataAsync('vesselactual', time, null, GPSLocationActual); //get current location weather right now.
+		//startPos = position;
+		//var time = new Date();
+		//time.setTime(time.getTime());
+		GPSLocationActual = [position.coords.longitude, position.coords.latitude]
+		console.log("GPSLocationActual:", GPSLocationActual);
 
-		vesselactualMarker = generateShip('vesselactual', GPSLocationActual[1], GPSLocationActual[0], 1);
-		mapSource.addFeatures(vesselactualMarker);
-
-		mapSource.addFeatures(generateVesselWORM('vesselactualWORM', 'vesselactual', GPSLocationActual[1], GPSLocationActual[0], 1, route.weatherdata.ghostvessel.wid, route.weatherdata.ghostvessel.wis, route.weatherdata.ghostvessel.cud, route.weatherdata.ghostvessel.cus, route.weatherdata.ghostvessel.wad, route.weatherdata.ghostvessel.wah));
-
-		rotateWeatherIndicators(); //rotates all weather indicators to align correctly with text - also called on map move/change
 	};
 	var geoError = function (error) {
 		console.log('Error occurred. Error code: ' + error.code);
@@ -45,8 +38,7 @@ window.onload = function () { // GEOLOCATION & COMPASS
 		//   3: timed out
 	};
 	navigator.geolocation.getCurrentPosition(geoSuccess, geoError, geoOptions);
-
-};
+}
 
 
 
@@ -110,4 +102,27 @@ function URLencode(data) {
 }
 function URLdecode(data) {
 	return decodeURIComponent(data.replace(/\+/g, " "));
+}
+
+
+
+
+
+function refreshVesselActualPosition() {
+	try {//rotate vesselactual according to compass
+		//iconFeature.getGeometry().translate(deltaX, deltaY);
+		//item.getGeometry().setCoordinates(modifiedCoordinate);
+
+		//mapSource.getFeatureById("ROUTESHIPMARKER_vesselactual").getStyle().getImage().setRotation(degToRad(-(CompassHeadingActual + CompassHeadingOffset)));
+		//mapSource.getFeatureById("COMPASS_vesselactual").getStyle().getImage().setRotation(degToRad(-(CompassHeadingActual + CompassHeadingOffset)));
+		
+
+
+		//mapSource.getFeatureById("ROUTESHIPMARKER_vesselactual").getGeometry().setCoordinates([10,50])
+		//mapSource.getFeatureById("ROUTESHIPMARKER_vesselactual").getGeometry().setCoordinates(GPSLocationActual)
+		//mapSource.getFeatureById("COMPASS_vesselactual").getGeometry().setCoordinates(GPSLocationActual)
+
+		//mapSource.changed(); //update map
+	} catch (ExceptionRotateVesselActualError) { console.log("move vesselactual failed");/*probably not yet added to map if GPS is disabled*/ }
+	mapSource.getFeatureById("ROUTESHIPMARKER_vesselactual").setPosition(GPSLocationActual)
 }
