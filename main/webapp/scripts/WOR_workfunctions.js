@@ -126,3 +126,91 @@ function refreshVesselActualPosition() {
 	} catch (ExceptionRotateVesselActualError) { console.log("move vesselactual failed");/*probably not yet added to map if GPS is disabled*/ }
 	mapSource.getFeatureById("ROUTESHIPMARKER_vesselactual").setPosition(GPSLocationActual)
 }
+
+
+
+
+
+
+function calculateAndSaveDistanceBetweenRouteMarkers() { //saves distance between markers to handle zooming behaviour of route weathermarkers
+	var distdebug = "";
+
+	for (var i = 0; i != route.waypoints.length-1; i++) {
+
+		var thiswaypoint = [route.waypoints[i].lon, route.waypoints[i].lat],
+			nextwaypoint = [route.waypoints[i+1].lon, route.waypoints[i+1].lat];
+
+		route.sheduleElement[i].nextwaypointdistance = getDistanceFromCoords(thiswaypoint, nextwaypoint);
+		//distdebug += route.sheduleElement[i].nextwaypointdistance + ", ";
+	}
+	//console.log("distdebug:", distdebug);
+}
+
+
+//test route weathermarkers for overlapping on zoom, remove the lowest overlapping one in order from start to end
+function cleanWeatherMarkersOverlapping() {
+	function hideshowmarkerswithindistance(showhidedistance) {
+		var totalDistance = 0;
+		for (var i = 0; i != route.sheduleElement.length - 1; i++) {//loop through all waypoints, remove any that are closer than (distance)
+			for (var y = i; y != route.sheduleElement.length - 1; y++) {
+				totalDistance = parseFloat(route.sheduleElement[i].nextwaypointdistance) + parseFloat(route.sheduleElement[i + 1].nextwaypointdistance); //add up distances
+				if (showhidedistance > totalDistance) {
+					try { //remove the marker
+						mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (i) + "_wavemarker"));
+						mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (i) + "_currentmarker"));
+						mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (i) + "_windmarker"));
+					} catch (ExceptionNoFeature) { }
+					route.sheduleElement[i].zoomdisplay = mapZoomLevel; //save at which zoomlevel to show this marker again
+				}
+			}
+			//add markers that are within acceptable distance again on zoom change
+			if (route.sheduleElement[i].zoomdisplay > 0 && mapZoomLevel > (route.sheduleElement[i].zoomdisplay)) {
+				updateRouteWORMFunction(i);
+				//mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_' + i, route.waypoints[i].lon, route.waypoints[i].lat, 0.7, 0, 0, 0, 0, 0, 0))
+				route.sheduleElement[i].zoomdisplay = 0; //rest marker zoom behaviour
+			}
+		}
+	}
+	var showhidedistance = 0;
+	switch (mapZoomLevel) {
+
+		case 11:
+			showhidedistance = 0.9;
+			break;
+		case 10:
+			showhidedistance = 1.8;
+			break;
+		case 9:
+			showhidedistance = 3.5;
+			break;
+		case 8:
+			showhidedistance = 6;
+			break;
+		case 7:
+			showhidedistance = 11;
+			break;
+		case 6:
+			showhidedistance = 22;
+			break;
+		case 5:
+			showhidedistance = 33;
+			break;
+		case 4:
+			showhidedistance = 66;
+			break;
+	}
+	hideshowmarkerswithindistance(showhidedistance);
+}
+
+
+
+function rendertimeformat(tm) {
+	if (tm && tm != "") return tm.toISOString().substring(0, tm.toISOString().length - 4) + "000+0000";
+}
+
+
+
+
+
+
+

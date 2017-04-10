@@ -27,10 +27,7 @@
 		//**************************************************************
 		//**************************************************************
 		//Handles communication with weather service provider
-		getWeatherDataAsync = function (request, time, eta, latlon, lonlat2, datatypes) {
-			function rendertimeformat(tm) {
-				if (tm && tm != "") return tm.toISOString().substring(0, tm.toISOString().length - 4) + "000+0000";
-			}
+		getWeatherDataAsync = function (request, time, eta, latlon, lonlat2, datatypes, routemarkernumber) {
 			//datatypes can be any combination of "'sealevel', 'current', 'wave', 'wind', 'density'".
 			//lonlats are always as coordinates array.[xx.xx,xx.xx]
 			var mssi = 999999999; // weather service provider knows what this is.
@@ -44,21 +41,21 @@
 			var retsuccess = false;
 			var retdata;
 
-			if (request == "ghostvessel" || request == "vesselactual" || request == "clickmarker") { //an area consists of many points, handled in backend
+			if (request == "ghostvessel" || request == "vesselactual" || request == "clickmarker") { 
 				tnow += rendertimeformat(time);
 				var now = new Date();
 				now.setTime(now.getTime() + (1000 * 60 * 10)); //add 10 minutes to satisfy weather service requirements
 				teta += rendertimeformat(now);
 				wp2 += latlon[0] + 0.0001 + "," + latlon[1]; //add a few metres to the coords to satisfy requirements
-			} else if (request == "line") {
-				if (!eta || eta == "") {
-					console.log("Line was used but no eta was defined. Please add an ETA.");
-					return;
-				} else {
-					tnow += rendertimeformat(time);
-					teta += rendertimeformat(eta);
-				}
+			} else if (request == "routemarker") {
+				wp2 += lonlat2;
+				tnow += time;
+				teta += eta;
 			}
+				
+
+
+
 			var req = "?mssi=" + mssi;
 			req += requesttype; //
 			(!datatypes || datatypes == "") ? req += data + "\'sealevel\',\'density\',\'current\',\'wave\',\'wind\'" : req += data + datatypes; //types of weather data requested. Can be manually set. Used for area if wind only is needed.
@@ -76,7 +73,7 @@
 				data: req,
 				dataType: "text",
 				crossDomain: true,
-				timeout: 10000, //error after timeout
+				timeout: 20000, //error after timeout
 				success: function (data) {
 					try {
 						data = JSON.parse(data);
@@ -84,10 +81,13 @@
 						console.log("Returned data is not JSON!\ndata:", data);
 					}
 					if (data.error == 9) {
-						console.log("Communication error with weather service:", data.errorMsg, " - Probably a bad request.");
+						console.log("Communication error with weather service:", data.errorMsg, "- Probably a bad request.");
 						console.log(data);
+					} else if (data.error == 7) {
+						console.log("Communication error with weather service:", data.errorMsg, "- Date out of bounds.");
 					} else if (data.error == 0) {
-						weatherDataCleaner(data, latlon, request); //expects a timer to deal with updating whatever needs updating - see "request".
+						//console.log("routemarkernumber:", routemarkernumber,"-", data);
+						weatherDataCleaner(data, latlon, request, routemarkernumber); //expects a timer to deal with updating whatever needs updating - see "request".
 					}
 				},
 				error: function (xhr, ajaxOptions, thrownError) {
@@ -100,7 +100,7 @@
 			});
 		}
 
-		weatherDataCleaner = function (data, latlon, request) { //validates data and puts into route object
+		weatherDataCleaner = function (data, latlon, request, routemarkernumber) { //validates data and puts into route object
 			var winddirection, windspeed, waveheight, wavedirection, currentdirection, currentspeed;
 
 			//WIND
@@ -160,9 +160,17 @@
 				if (wavedirection != null) route.weatherdata.clickmarker.wavedirection = wavedirection;
 				if (currentdirection != null) route.weatherdata.clickmarker.currentdirection = currentdirection;
 				if (currentspeed != null) route.weatherdata.clickmarker.currentspeed = currentspeed;
+			} else if (request == "routemarker") { //along the route on map - using "routemarkernumber"
+				if (winddirection != null) route.sheduleElement[routemarkernumber].winddirection = winddirection;
+				if (windspeed != null) route.sheduleElement[routemarkernumber].windspeed = windspeed;
+				if (waveheight != null) route.sheduleElement[routemarkernumber].waveheight = waveheight;
+				if (wavedirection != null) route.sheduleElement[routemarkernumber].wavedirection = wavedirection;
+				if (currentdirection != null) route.sheduleElement[routemarkernumber].currentdirection = currentdirection;
+				if (currentspeed != null) route.sheduleElement[routemarkernumber].currentspeed = currentspeed;
+				updateRouteWORMFunction(routemarkernumber);
+				//console.log(routemarkernumber, "-", route.sheduleElement[routemarkernumber]);
 			}
 			weatherFetchComplete = true;
-			console.log("wavedir:", route.weatherdata.clickmarker.wavedirection);
 		}
 
 
@@ -189,8 +197,9 @@
 			}), routeLayer
 			],
 			view: new ol.View({
-				center: ol.proj.transform([12.68383978917871, 55.3159902246746], 'EPSG:4326', 'EPSG:3857'),
-				zoom: 8,
+				center: ol.proj.transform([12.663240423944345, 54.880610640482985], 'EPSG:4326', 'EPSG:3857'),
+				//center: ol.proj.transform([12.68383978917871, 55.3159902246746], 'EPSG:4326', 'EPSG:3857'),
+				zoom: mapZoomLevel,
 				minZoom: 2,
 			})
 		});
@@ -203,6 +212,74 @@
 
 
 
+
+
+		//**************************************************************
+		//**************************************************************
+		function updateClickmarkerWORMFunction() { //test if weather fetch is completed, then create a new clickmarker
+			if (weatherFetchComplete) {
+				weatherFetchComplete = false; //reset
+
+				//easier to read
+				var winddir = route.weatherdata.clickmarker.winddirection;
+				var windstr = route.weatherdata.clickmarker.windspeed;
+				var currdir = route.weatherdata.clickmarker.currentdirection;
+				var currstr = route.weatherdata.clickmarker.currentspeed;
+				var wavedir = route.weatherdata.clickmarker.wavedirection;
+				var waveheight = route.weatherdata.clickmarker.waveheight;
+
+				try {
+					mapSource.removeFeature(mapSource.getFeatureById("WORMLoadingIcon")); //remove loading icon
+				} catch (ExceptionNoFeature) { }
+
+				//adds a new clickmarker with updated info
+				WORMarker = generateWORM('USERMARKER', 'clickmarker', route.mapfeatures.clickmarker.lon, route.mapfeatures.clickmarker.lat, 1, winddir, windstr, currdir, currstr, wavedir, waveheight);
+				mapSource.addFeatures(WORMarker)
+			}
+		}
+		var updateClickmarkerWORMTimer = setInterval(function () { updateClickmarkerWORMFunction() }, 30);
+
+
+
+
+		function updateRouteWORMFunction(routemarkernumber) { //create route weather marker when data is available.
+			//easier to read
+			var winddir = route.sheduleElement[routemarkernumber].winddirection;
+			var windstr = route.sheduleElement[routemarkernumber].windspeed;
+			var currdir = route.sheduleElement[routemarkernumber].currentdirection;
+			var currstr = route.sheduleElement[routemarkernumber].currentspeed;
+			var wavedir = route.sheduleElement[routemarkernumber].wavedirection;
+			var waveheight = route.sheduleElement[routemarkernumber].waveheight;
+
+			//try {
+			//	mapSource.removeFeature(mapSource.getFeatureById("WORMLoadingIcon")); //remove loading icon
+			//} catch (ExceptionNoFeature) { }
+
+			//adds a new clickmarker with updated info
+				//	mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_'+i, route.waypoints[i].lon, route.waypoints[i].lat, 0.7, 0, 0, 0, 0, 0, 0))
+			mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_' + routemarkernumber, route.waypoints[routemarkernumber].lon, route.waypoints[routemarkernumber].lat, 0.8, winddir, windstr, currdir, currstr, wavedir, waveheight));
+		}
+
+
+
+
+		function updateRouteWeatherDataFromService() {
+			for (var i = 0; i != route.sheduleElement.length; i++) {//loop through all waypoints, remove any that are closer than (distance)
+				var latlon = [];
+				latlon.push(route.waypoints[i].lat);
+				latlon.push(route.waypoints[i].lon);
+				var latlon2 = [];
+				latlon2.push(parseFloat(route.waypoints[i].lat)+0.0001);
+				latlon2.push(route.waypoints[i].lon);
+
+				var now = new Date();
+				now.setTime(now.getTime() + (1000 * 60 * 10)); //add 10 minutes to satisfy weather service requirements
+				var tnow = rendertimeformat(now);
+				var newtime = (route.sheduleElement[i].eta).replace("Z", "+0000");
+
+				getWeatherDataAsync('routemarker', tnow, newtime, latlon, latlon2, null, i);
+			}
+		}
 
 
 
@@ -219,44 +296,48 @@
 			route.mapfeatures.clickmarker.lat = lat;
 			var time = new Date();
 			time.setTime(time.getTime());
-			mapSource.addFeatures(retLoadingIcon(lonlat));
+			mapSource.addFeatures(retLoadingIcon(lonlat)); //display loading icon
 			getWeatherDataAsync('clickmarker', time, null, latlon); //get clicked location weather right now.
 			
+
+			//removes the existing clickmarker
 			try{
 				mapSource.removeFeature(mapSource.getFeatureById("clickmarker_wavemarker"));
 				mapSource.removeFeature(mapSource.getFeatureById("clickmarker_currentmarker"));
 				mapSource.removeFeature(mapSource.getFeatureById("clickmarker_windmarker"));
 			}catch(ExceptionNoFeature){}
 
-			console.log("Mouse lon:" + lon + " - " + "lat:" + lat);
+			//console.log("Mouse lon:" + lon + " - " + "lat:" + lat);
 		});
 
 
 		 
 
-		//**************************************************************
-		//**************************************************************
-		function updateWORMFunction() { //test if weather fetch is completed, then create a new clickmarker
-			if (weatherFetchComplete) {
-				weatherFetchComplete = false; //reset
 
-				//easier to read
-				var winddir = route.weatherdata.clickmarker.winddirection;
-				var windstr = route.weatherdata.clickmarker.windspeed;
-				var currdir = route.weatherdata.clickmarker.currentdirection;
-				var currstr = route.weatherdata.clickmarker.currentspeed;
-				var wavedir = route.weatherdata.clickmarker.wavedirection;
-				var waveheight = route.weatherdata.clickmarker.waveheight;
 
-				try {
-					mapSource.removeFeature(mapSource.getFeatureById("WORMLoadingIcon")); //remove loading icon
-				} catch (ExceptionNoFeature) { }
 
-				WORMarker = generateWORM('USERMARKER', 'clickmarker', route.mapfeatures.clickmarker.lon, route.mapfeatures.clickmarker.lat, 1, winddir, windstr, currdir, currstr, wavedir, waveheight);
-				mapSource.addFeatures(WORMarker)
-			}
-		}
-		var updateWORMTimer = setInterval(function () { updateWORMFunction() }, 30);
+
+		map.on("moveend", function (e) { //zoom or move map
+			mapZoomLevel = parseInt(map.getView().getZoom()); //global variable
+			cleanWeatherMarkersOverlapping(); //WOR_workfunctions.js - adds/removes waypoint weathermarkers according to distance in nautical miles at different zoom levels
+		})
+
+
+
+		$(document).ready(function () {
+			map.once('postrender', function (event) {
+				mapRenderComplete = true;
+				//for (var i = 0; i != route.waypoints.length; i++) { //create route weather markers
+				//	mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_'+i, route.waypoints[i].lon, route.waypoints[i].lat, 0.7, 0, 0, 0, 0, 0, 0))
+				//}
+				calculateAndSaveDistanceBetweenRouteMarkers(); //calc and save distances between waypoints into route.scheduleelements
+				updateRouteWeatherDataFromService();
+			});
+
+
+		});
+
+
 
 	</script>
 

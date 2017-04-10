@@ -155,6 +155,7 @@ var retWORMWaveStyle = function (scale, wavedir, waveheight) {
 	if (!waveheight || waveheight==0) waveheight = "";
 	var radOff = 0.47; //text offset in radians for current and wave indicator
 	var WORMWaveStyle = new ol.style.Style({
+		zIndex: 50,
 		image: new ol.style.Icon({
 			opacity: 0.75,
 			rotation: degToRad(wavedir), //wavepointer is pointing lowerright
@@ -189,6 +190,7 @@ var retWORMCurrentStyle = function (scale, currdir, currstr) {
 	if (!currstr || currstr == 0) currstr = "";
 	var radOff = 0.25; //text offset in radians for current and wave indicator
 	var WORMCurrentStyle = new ol.style.Style({
+		zIndex: 51,
 		image: new ol.style.Icon({
 			opacity: (currstr!="")?1:0,
 			rotation: degToRad(currdir), //currentpointer is pointing lowerright
@@ -217,18 +219,68 @@ var retWORMCurrentStyle = function (scale, currdir, currstr) {
 }
 
 
-//var WORMWindparams = { rot: -135, anchor: [0.5, 0.5] };
-var retWORMWindStyle = function (scale, winddir, windstr) {
+var retWORMWindStyle = function (scale, winddir, windstr) { //windstr is m/s
 	if (!scale) scale = 1;
-	if (!winddir) winddir = 180;
+	if (!winddir) winddir = 180; //default north
+	(!windstr) ? windstr = 1 : windstr * 1.9438444924574; // make 1 knot if nothing, or meter/sec to knots.
+	var markerImageNamePath = "images/wind/";
+
+
+	//Determine wind marker image to display
+	if (windstr < 1.9){
+		markerImageNamePath += 'mark000.png';
+	} else if (windstr >= 2 && windstr < 7.5) {
+		markerImageNamePath += 'mark005.png';
+	} else if (windstr >= 7.5 && windstr < 12.5) {
+		markerImageNamePath += 'mark010.png';
+	} else if (windstr >= 12.5 && windstr < 17.5) {
+		markerImageNamePath += 'mark015.png';
+	} else if (windstr >= 17.5 && windstr < 22.5) {
+		markerImageNamePath += 'mark020.png';
+	} else if (windstr >= 22.5 && windstr < 27.5) {
+		markerImageNamePath += 'mark025.png';
+	} else if (windstr >= 27.5 && windstr < 32.5) {
+		markerImageNamePath += 'mark030.png';
+	} else if (windstr >= 32.5 && windstr < 37.5) {
+		markerImageNamePath += 'mark035.png';
+	} else if (windstr >= 37.5 && windstr < 42.5) {
+		markerImageNamePath += 'mark040.png';
+	} else if (windstr >= 42.5 && windstr < 47.5) {
+		markerImageNamePath += 'mark045.png';
+	} else if (windstr >= 47.5 && windstr < 52.5) {
+		markerImageNamePath += 'mark050.png';
+	} else if (windstr >= 52.5 && windstr < 57.5) {
+		markerImageNamePath += 'mark055.png';
+	} else if (windstr >= 57.5 && windstr < 62.5) {
+		markerImageNamePath += 'mark060.png';
+	} else if (windstr >= 62.5 && windstr < 67.5) {
+		markerImageNamePath += 'mark065.png';
+	} else if (windstr >= 67.5 && windstr < 72.5) {
+		markerImageNamePath += 'mark070.png';
+	} else if (windstr >= 72.5 && windstr < 77.5) {
+		markerImageNamePath += 'mark075.png';
+	} else if (windstr >= 77.5 && windstr < 82.5) {
+		markerImageNamePath += 'mark080.png';
+	} else if (windstr >= 82.5 && windstr < 87.5) {
+		markerImageNamePath += 'mark085.png';
+	} else if (windstr >= 87.5 && windstr < 92.5) {
+		markerImageNamePath += 'mark090.png';
+	} else if (windstr >= 92.5 && windstr < 97.5) {
+		markerImageNamePath += 'mark095.png';
+	} else if (windstr >= 97.5) {
+		markerImageNamePath += 'mark100.png';
+	}
+
+
 	var WORMWindStyle = new ol.style.Style({
+		zIndex: 52,
 		image: new ol.style.Icon(({
 			opacity: 1,
 			rotation: degToRad(winddir), //windpointer is straight is pointing straight down
 			anchor: [(0.52), (0.25)],
 			anchorXUnits: 'fraction',
 			anchorYUnits: 'fraction',
-			src: 'images/wind/mark005.png', //needs path and windstr to paint correct arrow
+			src: markerImageNamePath, //needs path and windstr to paint correct arrow
 			scale: (0.80 * scale)
 		}))
 	});
@@ -240,7 +292,7 @@ var retWORMWindStyle = function (scale, winddir, windstr) {
 
 var WORMarker; //When user clicks anywhere on map
 var WORMarkers = []; //array for multiple markers along route
-var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, waveheight) { //type is given so it can be styled, identifier must be unique.
+var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, waveheight) { //type is given so it can be styled.
 	if (!lon || !lat) { lon = 0; lat = 0; }
 
 	//WAVEARROW
@@ -248,6 +300,7 @@ var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr
 		geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
 		name: 'WOR_wavemarker',
 		type: type,
+		identifier: identifier,
 		src: 'images/WOR_vessel_backdropcircle.png',
 	});
 	iconFeature.setStyle(retWORMWaveStyle(scale, wavedir, waveheight)); //generated style
@@ -258,6 +311,7 @@ var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr
 		geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
 		name: 'WOR_currentmarker',
 		type: type,
+		identifier: identifier,
 		src: 'images/WOR_innercircle.png',
 	});
 	iconFeature2.setStyle(retWORMCurrentStyle(scale, currdir, currstr));
@@ -268,6 +322,7 @@ var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr
 		geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
 		name: 'WOR_windmarker',
 		type: type,
+		identifier: identifier,
 		src: 'images/wind/mark005.png',
 	});
 	iconFeature3.setStyle(retWORMWindStyle(scale, winddir, windstr));
