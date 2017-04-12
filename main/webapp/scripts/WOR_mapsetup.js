@@ -219,7 +219,7 @@ var retWORMCurrentStyle = function (scale, currdir, currstr) {
 }
 
 
-var retWORMWindStyle = function (scale, winddir, windstr) { //windstr is m/s
+var retWORMWindStyle = function (scale, winddir, windstr, markertext) { //windstr is m/s
 	if (!scale) scale = 1;
 	if (!winddir) winddir = 180; //default north
 	(!windstr) ? windstr = 1 : windstr * 1.9438444924574; // make 1 knot if nothing, or meter/sec to knots.
@@ -282,17 +282,25 @@ var retWORMWindStyle = function (scale, winddir, windstr) { //windstr is m/s
 			anchorYUnits: 'fraction',
 			src: markerImageNamePath, //needs path and windstr to paint correct arrow
 			scale: (0.80 * scale)
-		}))
+		})),
+		text: new ol.style.Text({
+			font: '11px helvetica,sans-serif',
+			text: "" + markertext,
+			offsetX: 0,
+			offsetY: 36 * scale,
+			scale: (1 * scale),
+			fill: new ol.style.Fill({
+				color: '#000'
+			}),
+		})
 	});
 	return WORMWindStyle;
 }
 
 
 
-
-var WORMarker; //When user clicks anywhere on map
-var WORMarkers = []; //array for multiple markers along route
-var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, waveheight) { //type is given so it can be styled.
+//creates a weather marker
+var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, waveheight, markertext) { //type is given so it can be styled.
 	if (!lon || !lat) { lon = 0; lat = 0; }
 
 	//WAVEARROW
@@ -325,13 +333,11 @@ var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr
 		identifier: identifier,
 		src: 'images/wind/mark005.png',
 	});
-	iconFeature3.setStyle(retWORMWindStyle(scale, winddir, windstr));
+	iconFeature3.setStyle(retWORMWindStyle(scale, winddir, windstr, markertext));
 	iconFeature3.setId(type + '_windmarker');
 
 	return [iconFeature, iconFeature2, iconFeature3];
 }
-
-
 
 
 

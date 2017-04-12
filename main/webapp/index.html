@@ -73,28 +73,29 @@
 				data: req,
 				dataType: "text",
 				crossDomain: true,
-				timeout: 20000, //error after timeout
+				timeout: 10000, //error after timeout
 				success: function (data) {
 					try {
 						data = JSON.parse(data);
 					} catch (ExceptionDataParseError) {
 						console.log("Returned data is not JSON!\ndata:", data);
 					}
-					if (data.error == 9) {
+					if (data.error === 9) {
 						console.log("Communication error with weather service:", data.errorMsg, "- Probably a bad request.");
 						console.log(data);
-					} else if (data.error == 7) {
+					} else if (data.error === 7) {
 						console.log("Communication error with weather service:", data.errorMsg, "- Date out of bounds.");
-					} else if (data.error == 0) {
-						//console.log("routemarkernumber:", routemarkernumber,"-", data);
+					} else if (data.error === 0) {
+						console.log("routemarkernumber:", routemarkernumber,"-", data);
 						weatherDataCleaner(data, latlon, request, routemarkernumber); //expects a timer to deal with updating whatever needs updating - see "request".
 					}
 				},
 				error: function (xhr, ajaxOptions, thrownError) {
 					if (thrownError === 'timeout') {
 						console.log('WEATHER SERVICE TIMEOUT!')
+						weatherDataCleaner(data, latlon, request, routemarkernumber); //expects a timer to deal with updating whatever needs updating - see "request".
 					} else {
-						console.log("Communication error with weather service:'", thrownError, "' - Probably due to no 'Access-Control-Allow-Origin' in header of resource.\nPlease use Chrome plugin: https://chrome.google.com/webstore/detail/allow-control-allow-origi/nlfbmbojpeacfghkpbjhddihlkkiljbi/related?hl=en-US - Rob - the developer.");
+						console.log("Communication error with weather service:'", thrownError);
 					}
 				},
 			});
@@ -167,7 +168,11 @@
 				if (wavedirection != null) route.sheduleElement[routemarkernumber].wavedirection = wavedirection;
 				if (currentdirection != null) route.sheduleElement[routemarkernumber].currentdirection = currentdirection;
 				if (currentspeed != null) route.sheduleElement[routemarkernumber].currentspeed = currentspeed;
-				updateRouteWORMFunction(routemarkernumber);
+				if (winddirection != 0 && windspeed != 0 && waveheight != 0 && wavedirection != 0 && currentspeed != 0 && currentdirection != 0) {
+					updateRouteWORMFunction(routemarkernumber, true);
+				} else {
+					updateRouteWORMFunction(routemarkernumber, false);
+				}
 				//console.log(routemarkernumber, "-", route.sheduleElement[routemarkernumber]);
 			}
 			weatherFetchComplete = true;
@@ -221,20 +226,27 @@
 				weatherFetchComplete = false; //reset
 
 				//easier to read
-				var winddir = route.weatherdata.clickmarker.winddirection;
-				var windstr = route.weatherdata.clickmarker.windspeed;
-				var currdir = route.weatherdata.clickmarker.currentdirection;
-				var currstr = route.weatherdata.clickmarker.currentspeed;
-				var wavedir = route.weatherdata.clickmarker.wavedirection;
+				var winddirection = route.weatherdata.clickmarker.winddirection;
+				var windspeed = route.weatherdata.clickmarker.windspeed;
+				var currentdirection = route.weatherdata.clickmarker.currentdirection;
+				var currentspeed = route.weatherdata.clickmarker.currentspeed;
+				var wavedirection = route.weatherdata.clickmarker.wavedirection;
 				var waveheight = route.weatherdata.clickmarker.waveheight;
+				var markertext = "";
+
+				if (winddirection != 0 && windspeed != 0 && waveheight != 0 && wavedirection != 0 && currentspeed != 0 && currentdirection != 0) {
+					markertext = "";
+				} else {
+					markertext = "\nCOMMUNICATION\nERROR";
+				}
+					
 
 				try {
 					mapSource.removeFeature(mapSource.getFeatureById("WORMLoadingIcon")); //remove loading icon
 				} catch (ExceptionNoFeature) { }
 
 				//adds a new clickmarker with updated info
-				WORMarker = generateWORM('USERMARKER', 'clickmarker', route.mapfeatures.clickmarker.lon, route.mapfeatures.clickmarker.lat, 1, winddir, windstr, currdir, currstr, wavedir, waveheight);
-				mapSource.addFeatures(WORMarker)
+				mapSource.addFeatures(generateWORM('USERMARKER', 'clickmarker', route.mapfeatures.clickmarker.lon, route.mapfeatures.clickmarker.lat, 1, winddirection, windspeed, currentdirection, currentspeed, wavedirection, waveheight, markertext))
 			}
 		}
 		var updateClickmarkerWORMTimer = setInterval(function () { updateClickmarkerWORMFunction() }, 30);
@@ -242,8 +254,10 @@
 
 
 
-		function updateRouteWORMFunction(routemarkernumber) { //create route weather marker when data is available.
+		function updateRouteWORMFunction(routemarkernumber, isSuccess) { //create route weather marker when data is available.
 			//easier to read
+
+			//TODO - rename these vars and the functioncalls
 			var winddir = route.sheduleElement[routemarkernumber].winddirection;
 			var windstr = route.sheduleElement[routemarkernumber].windspeed;
 			var currdir = route.sheduleElement[routemarkernumber].currentdirection;
@@ -251,19 +265,22 @@
 			var wavedir = route.sheduleElement[routemarkernumber].wavedirection;
 			var waveheight = route.sheduleElement[routemarkernumber].waveheight;
 
-			//try {
-			//	mapSource.removeFeature(mapSource.getFeatureById("WORMLoadingIcon")); //remove loading icon
-			//} catch (ExceptionNoFeature) { }
+			var markertext = "";//retDayFromRTZ(route.sheduleElement[routemarkernumber].eta)// + "\n" + route.scheduleElement[routemarkernumber].eta.split("T")[1].split(".")[0];
+			markertext = "\nXXXDAY\nHH:MM:SS";
+
 
 			//adds a new clickmarker with updated info
-				//	mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_'+i, route.waypoints[i].lon, route.waypoints[i].lat, 0.7, 0, 0, 0, 0, 0, 0))
-			mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_' + routemarkernumber, route.waypoints[routemarkernumber].lon, route.waypoints[routemarkernumber].lat, 0.8, winddir, windstr, currdir, currstr, wavedir, waveheight));
+			if (isSuccess) {
+				mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_' + routemarkernumber, route.waypoints[routemarkernumber].lon, route.waypoints[routemarkernumber].lat, 0.8, winddir, windstr, currdir, currstr, wavedir, waveheight, markertext));
+			} else {
+				mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_' + routemarkernumber, route.waypoints[routemarkernumber].lon, route.waypoints[routemarkernumber].lat, 0.3, winddir, windstr, currdir, currstr, wavedir, waveheight, "ERROR"));
+			}
 		}
 
 
 
 
-		function updateRouteWeatherDataFromService() {
+		function updateRouteWeatherDataFromService() { //gets weather data for route
 			for (var i = 0; i != route.sheduleElement.length; i++) {//loop through all waypoints, remove any that are closer than (distance)
 				var latlon = [];
 				latlon.push(route.waypoints[i].lat);
@@ -272,14 +289,24 @@
 				latlon2.push(parseFloat(route.waypoints[i].lat)+0.0001);
 				latlon2.push(route.waypoints[i].lon);
 
-				var now = new Date();
-				now.setTime(now.getTime() + (1000 * 60 * 10)); //add 10 minutes to satisfy weather service requirements
-				var tnow = rendertimeformat(now);
-				var newtime = (route.sheduleElement[i].eta).replace("Z", "+0000");
+				var routeeta = (route.sheduleElement[i].eta).replace("Z", "+0000"); //gives: YYYY-MM-DDTHH:MM:SS.000+0000
 
-				getWeatherDataAsync('routemarker', tnow, newtime, latlon, latlon2, null, i);
+				var goNegative = false;
+				var prependzero = false;
+
+				var hours = parseInt(routeeta.split("T")[1].substring(0, 2));
+				if (hours > 22) goNegative = true; //test if close to whole hour, make sure to go 10min back in time of ETA instead of forward
+				prependzero = true;
+
+				var eta2 = routeeta.split("T")[0] + "T"; //set date
+				if (hours < 9) eta2 += "0";
+				eta2 += (goNegative) ? hours - 1 : hours + 1; //set hours pending on time
+				eta2 += ":"+routeeta.split("T")[1].substring(3, routeeta.split("T")[1].length)
+
+				getWeatherDataAsync('routemarker', routeeta, eta2, latlon, latlon2, null, i);
 			}
 		}
+
 
 
 
@@ -291,14 +318,14 @@
 			var lat = lonlat[1];
 			var latlon = [lat, lon]; //reversed
 
-			//get weather at clicked location
+
+			//CLICKMARKER
 			route.mapfeatures.clickmarker.lon = lon;
 			route.mapfeatures.clickmarker.lat = lat;
 			var time = new Date();
 			time.setTime(time.getTime());
 			mapSource.addFeatures(retLoadingIcon(lonlat)); //display loading icon
 			getWeatherDataAsync('clickmarker', time, null, latlon); //get clicked location weather right now.
-			
 
 			//removes the existing clickmarker
 			try{
@@ -306,15 +333,27 @@
 				mapSource.removeFeature(mapSource.getFeatureById("clickmarker_currentmarker"));
 				mapSource.removeFeature(mapSource.getFeatureById("clickmarker_windmarker"));
 			}catch(ExceptionNoFeature){}
+			//END CLICKMARKER
 
-			//console.log("Mouse lon:" + lon + " - " + "lat:" + lat);
+
+			//detect if user clicks on existing route weather marker and remove it
+			//var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
+			//	return feature;
+			//});
+
+			//try {
+			//	mapSource.removeFeature(mapSource.getFeatureById("clickmarker_wavemarker"));
+			//	mapSource.removeFeature(mapSource.getFeatureById("clickmarker_currentmarker"));
+			//	mapSource.removeFeature(mapSource.getFeatureById("clickmarker_windmarker"));
+			//} catch (ExceptionNoFeature) { }
+
+			//if (feature) console.log("Clicked:", feature.getId());
+
+			console.log("Mouse lon:" + lon + " - " + "lat:" + lat);
 		});
 
 
 		 
-
-
-
 
 
 		map.on("moveend", function (e) { //zoom or move map
@@ -327,11 +366,8 @@
 		$(document).ready(function () {
 			map.once('postrender', function (event) {
 				mapRenderComplete = true;
-				//for (var i = 0; i != route.waypoints.length; i++) { //create route weather markers
-				//	mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_'+i, route.waypoints[i].lon, route.waypoints[i].lat, 0.7, 0, 0, 0, 0, 0, 0))
-				//}
 				calculateAndSaveDistanceBetweenRouteMarkers(); //calc and save distances between waypoints into route.scheduleelements
-				updateRouteWeatherDataFromService();
+				updateRouteWeatherDataFromService(); //gets weather data for each waypoint
 			});
 
 

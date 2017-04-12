@@ -208,9 +208,12 @@ function rendertimeformat(tm) {
 	if (tm && tm != "") return tm.toISOString().substring(0, tm.toISOString().length - 4) + "000+0000";
 }
 
-
-
-
-
+function retDayFromRTZ(tm) { //returns which day it is from a timestamp
+	var days,
+		tm = tm.split("T")[0],
+		tmnew = new Date(tm);
+	days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+	return days[tmnew.getUTCDay()];
+}
 
 

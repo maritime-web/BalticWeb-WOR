@@ -30,9 +30,9 @@ var route = {
 	],
 	sheduleElement: [ //waypoint weatherdata is saved in scheduleelement
 	{ waypointId: 0, eta: "2017-04-11T00:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
-	{ waypointId: 1, eta: "2017-04-11T02:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
+	{ waypointId: 1, eta: "2017-04-11T02:54:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
 	{ waypointId: 2, eta: "2017-04-11T04:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
-	{ waypointId: 3, eta: "2017-04-11T06:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 20, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
+	{ waypointId: 3, eta: "2017-04-11T06:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
 	{ waypointId: 4, eta: "2017-04-11T08:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
 	{ waypointId: 4, eta: "2017-04-11T10:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
 	],
