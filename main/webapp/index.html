@@ -11,6 +11,7 @@
 	<script src="scripts/WOR_declarations.js"></script>
 	<script src="scripts/WOR_workfunctions.js"></script>
 	<script src="scripts/WOR_mapsetup.js"></script>
+	<script src="scripts/WOR_WeatherServiceHandler.js"></script>
 	<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
 	<meta name="msapplication-tap-highlight" content="no" />
 
@@ -26,157 +27,6 @@
 
 		//**************************************************************
 		//**************************************************************
-		//Handles communication with weather service provider
-		getWeatherDataAsync = function (request, time, eta, latlon, lonlat2, datatypes, routemarkernumber) {
-			//datatypes can be any combination of "'sealevel', 'current', 'wave', 'wind', 'density'".
-			//lonlats are always as coordinates array.[xx.xx,xx.xx]
-			var mssi = 999999999; // weather service provider knows what this is.
-			var requesttype = "&request=" + request;
-			var data = "&datatypes="; //data=datatypes, sealevel, current, wave, wind, density. (sealevel is tide height +-, density is salinity index. WOR only uses current, wave, wind. Must be separated by escaped single quotation"\'"
-			var dt = "&dt=20"; //Can be from 20 to ca. 1500, returns how many prognosis points there are, number seems to be area (radius) in metres. Lower than 20 can return nothing.
-			var wp = "&wp=" + latlon; //waypoints. Has to have at least 2, can be just 10 metres apart for single point.
-			var wp2 = "&wp2="; //second waypoint. Used only for line and area.
-			var tnow = "&time=";
-			var teta = "&eta="; //is only used with line, but still needed with points and areas because weather service requires a time window
-			var retsuccess = false;
-			var retdata;
-
-			if (request == "ghostvessel" || request == "vesselactual" || request == "clickmarker") { 
-				tnow += rendertimeformat(time);
-				var now = new Date();
-				now.setTime(now.getTime() + (1000 * 60 * 10)); //add 10 minutes to satisfy weather service requirements
-				teta += rendertimeformat(now);
-				wp2 += latlon[0] + 0.0001 + "," + latlon[1]; //add a few metres to the coords to satisfy requirements
-			} else if (request == "routemarker") {
-				wp2 += lonlat2;
-				tnow += time;
-				teta += eta;
-			}
-				
-
-
-
-			var req = "?mssi=" + mssi;
-			req += requesttype; //
-			(!datatypes || datatypes == "") ? req += data + "\'sealevel\',\'density\',\'current\',\'wave\',\'wind\'" : req += data + datatypes; //types of weather data requested. Can be manually set. Used for area if wind only is needed.
-			req += dt;  //resolution always lowest for single points
-			req += wp; //position as point
-			req += wp2; //
-			req += tnow.replace("+", "%2B"); //time at now - plus sign is regarded as space, will have issues when encoding if not encoded now.
-			req += teta.replace("+", "%2B"); //time at ETA
-			//console.log(req);
-			$.ajax({
-				cache: false,
-				type: "POST",
-				crossDomain: true,
-				url: "https://beeres.dk/wor/worservice/handler.ashx", //use this url until we have a better service running
-				data: req,
-				dataType: "text",
-				crossDomain: true,
-				timeout: 10000, //error after timeout
-				success: function (data) {
-					try {
-						data = JSON.parse(data);
-					} catch (ExceptionDataParseError) {
-						console.log("Returned data is not JSON!\ndata:", data);
-					}
-					if (data.error === 9) {
-						console.log("Communication error with weather service:", data.errorMsg, "- Probably a bad request.");
-						console.log(data);
-					} else if (data.error === 7) {
-						console.log("Communication error with weather service:", data.errorMsg, "- Date out of bounds.");
-					} else if (data.error === 0) {
-						console.log("routemarkernumber:", routemarkernumber,"-", data);
-						weatherDataCleaner(data, latlon, request, routemarkernumber); //expects a timer to deal with updating whatever needs updating - see "request".
-					}
-				},
-				error: function (xhr, ajaxOptions, thrownError) {
-					if (thrownError === 'timeout') {
-						console.log('WEATHER SERVICE TIMEOUT!')
-						weatherDataCleaner(data, latlon, request, routemarkernumber); //expects a timer to deal with updating whatever needs updating - see "request".
-					} else {
-						console.log("Communication error with weather service:'", thrownError);
-					}
-				},
-			});
-		}
-
-		weatherDataCleaner = function (data, latlon, request, routemarkernumber) { //validates data and puts into route object
-			var winddirection, windspeed, waveheight, wavedirection, currentdirection, currentspeed;
-
-			//WIND
-			try {
-				winddirection = Math.round(data.metocForecast.forecasts[0]["wind-dir"].forecast * 10) / 10
-			} catch (ExceptionNoWindDirection) {
-				winddirection = 0
-			};
-			try {
-				windspeed = Math.round(data.metocForecast.forecasts[0]["wind-speed"].forecast * 10) / 10
-			} catch (ExceptionNoWindSpeed) {
-				windspeed = 0
-			};
-
-			//WAVE
-			try {
-				waveheight = Math.round(data.metocForecast.forecasts[0]["wave-height"].forecast * 10) / 10
-			} catch (ExceptionNoWaveHeight) {
-				waveheight = 0
-			};
-			try {
-				wavedirection = Math.round(data.metocForecast.forecasts[0]["wave-dir"].forecast * 10) / 10
-			} catch (ExceptionNoWaveHeight) {
-				wavedirection = 0
-			};
-
-			//CURRENT
-			try {
-				currentdirection = Math.round(data.metocForecast.forecasts[0]["current-dir"].forecast * 10) / 10
-			} catch (ExceptionNoWaveHeight) {
-				currentdirection = 0
-			};
-			try {
-				currentspeed = Math.round(data.metocForecast.forecasts[0]["current-speed"].forecast * 10) / 10
-			} catch (ExceptionNoWaveHeight) {
-				currentspeed = 0
-			};
-			//put weather into route object - see "WOR_declarations.js"
-			if (request == "ghostvessel") { //time projected vessel
-				if (winddirection != null) route.weatherdata.ghostvessel.winddirection = winddirection;
-				if (windspeed != null) route.weatherdata.ghostvessel.windspeed = windspeed;
-				if (waveheight != null) route.weatherdata.ghostvessel.waveheight = waveheight;
-				if (wavedirection != null) route.weatherdata.ghostvessel.wavedirection = wavedirection;
-				if (currentdirection != null) route.weatherdata.ghostvessel.currentdirection = currentdirection;
-				if (currentspeed != null) route.weatherdata.ghostvessel.currentspeed = currentspeed;
-			} else if (request == "vesselactual") { //real vessel
-				if (winddirection != null) route.weatherdata.vesselactual.winddirection = winddirection;
-				if (windspeed != null) route.weatherdata.vesselactual.windspeed = windspeed;
-				if (waveheight != null) route.weatherdata.vesselactual.waveheight = waveheight;
-				if (wavedirection != null) route.weatherdata.vesselactual.wavedirection = wavedirection;
-				if (currentdirection != null) route.weatherdata.vesselactual.currentdirection = currentdirection;
-				if (currentspeed != null) route.weatherdata.vesselactual.currentspeed = currentspeed;
-			} else if (request == "clickmarker") { //clicked location on map
-				if (winddirection != null) route.weatherdata.clickmarker.winddirection = winddirection;
-				if (windspeed != null) route.weatherdata.clickmarker.windspeed = windspeed;
-				if (waveheight != null) route.weatherdata.clickmarker.waveheight = waveheight;
-				if (wavedirection != null) route.weatherdata.clickmarker.wavedirection = wavedirection;
-				if (currentdirection != null) route.weatherdata.clickmarker.currentdirection = currentdirection;
-				if (currentspeed != null) route.weatherdata.clickmarker.currentspeed = currentspeed;
-			} else if (request == "routemarker") { //along the route on map - using "routemarkernumber"
-				if (winddirection != null) route.sheduleElement[routemarkernumber].winddirection = winddirection;
-				if (windspeed != null) route.sheduleElement[routemarkernumber].windspeed = windspeed;
-				if (waveheight != null) route.sheduleElement[routemarkernumber].waveheight = waveheight;
-				if (wavedirection != null) route.sheduleElement[routemarkernumber].wavedirection = wavedirection;
-				if (currentdirection != null) route.sheduleElement[routemarkernumber].currentdirection = currentdirection;
-				if (currentspeed != null) route.sheduleElement[routemarkernumber].currentspeed = currentspeed;
-				if (winddirection != 0 && windspeed != 0 && waveheight != 0 && wavedirection != 0 && currentspeed != 0 && currentdirection != 0) {
-					updateRouteWORMFunction(routemarkernumber, true);
-				} else {
-					updateRouteWORMFunction(routemarkernumber, false);
-				}
-				//console.log(routemarkernumber, "-", route.sheduleElement[routemarkernumber]);
-			}
-			weatherFetchComplete = true;
-		}
 
 
 		//A lot of stuff happens in "WOR_mapsetup.js" - just ignore the route setup part, look at: "generateWORM"
@@ -187,6 +37,8 @@
 		var routeDotsHandle = createRouteStartEndDots(); //start and end dots
 		var routeDotsHandle2 = createRouteDots(); //all dots along the line except start and end
 		var routeHandle = createRouteLegs(); //all legs along the line as features
+
+
 
 		var map = new ol.Map({
 			loadTilesWhileInteracting: true,
@@ -218,7 +70,6 @@
 
 
 
-
 		//**************************************************************
 		//**************************************************************
 		function updateClickmarkerWORMFunction() { //test if weather fetch is completed, then create a new clickmarker
@@ -232,14 +83,7 @@
 				var currentspeed = route.weatherdata.clickmarker.currentspeed;
 				var wavedirection = route.weatherdata.clickmarker.wavedirection;
 				var waveheight = route.weatherdata.clickmarker.waveheight;
-				var markertext = "";
-
-				if (winddirection != 0 && windspeed != 0 && waveheight != 0 && wavedirection != 0 && currentspeed != 0 && currentdirection != 0) {
-					markertext = "";
-				} else {
-					markertext = "\nCOMMUNICATION\nERROR";
-				}
-					
+				var markertext = ""; //doesnt need text
 
 				try {
 					mapSource.removeFeature(mapSource.getFeatureById("WORMLoadingIcon")); //remove loading icon
@@ -247,6 +91,8 @@
 
 				//adds a new clickmarker with updated info
 				mapSource.addFeatures(generateWORM('USERMARKER', 'clickmarker', route.mapfeatures.clickmarker.lon, route.mapfeatures.clickmarker.lat, 1, winddirection, windspeed, currentdirection, currentspeed, wavedirection, waveheight, markertext))
+				cleanWeatherMarkersOverlapping();
+
 			}
 		}
 		var updateClickmarkerWORMTimer = setInterval(function () { updateClickmarkerWORMFunction() }, 30);
@@ -254,65 +100,29 @@
 
 
 
-		function updateRouteWORMFunction(routemarkernumber, isSuccess) { //create route weather marker when data is available.
-			//easier to read
-
-			//TODO - rename these vars and the functioncalls
-			var winddir = route.sheduleElement[routemarkernumber].winddirection;
-			var windstr = route.sheduleElement[routemarkernumber].windspeed;
-			var currdir = route.sheduleElement[routemarkernumber].currentdirection;
-			var currstr = route.sheduleElement[routemarkernumber].currentspeed;
-			var wavedir = route.sheduleElement[routemarkernumber].wavedirection;
-			var waveheight = route.sheduleElement[routemarkernumber].waveheight;
-
-			var markertext = "";//retDayFromRTZ(route.sheduleElement[routemarkernumber].eta)// + "\n" + route.scheduleElement[routemarkernumber].eta.split("T")[1].split(".")[0];
-			markertext = "\nXXXDAY\nHH:MM:SS";
-
-
-			//adds a new clickmarker with updated info
-			if (isSuccess) {
-				mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_' + routemarkernumber, route.waypoints[routemarkernumber].lon, route.waypoints[routemarkernumber].lat, 0.8, winddir, windstr, currdir, currstr, wavedir, waveheight, markertext));
-			} else {
-				mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_' + routemarkernumber, route.waypoints[routemarkernumber].lon, route.waypoints[routemarkernumber].lat, 0.3, winddir, windstr, currdir, currstr, wavedir, waveheight, "ERROR"));
-			}
-		}
-
-
-
-
 		function updateRouteWeatherDataFromService() { //gets weather data for route
-			for (var i = 0; i != route.sheduleElement.length; i++) {//loop through all waypoints, remove any that are closer than (distance)
+			for (var i = 0; i != route.scheduleElement.length; i++) {//loop through all waypoints, remove any that are closer than (distance)
 				var latlon = [];
 				latlon.push(route.waypoints[i].lat);
 				latlon.push(route.waypoints[i].lon);
-				var latlon2 = [];
-				latlon2.push(parseFloat(route.waypoints[i].lat)+0.0001);
-				latlon2.push(route.waypoints[i].lon);
-
-				var routeeta = (route.sheduleElement[i].eta).replace("Z", "+0000"); //gives: YYYY-MM-DDTHH:MM:SS.000+0000
-
-				var goNegative = false;
-				var prependzero = false;
-
-				var hours = parseInt(routeeta.split("T")[1].substring(0, 2));
-				if (hours > 22) goNegative = true; //test if close to whole hour, make sure to go 10min back in time of ETA instead of forward
-				prependzero = true;
-
-				var eta2 = routeeta.split("T")[0] + "T"; //set date
-				if (hours < 9) eta2 += "0";
-				eta2 += (goNegative) ? hours - 1 : hours + 1; //set hours pending on time
-				eta2 += ":"+routeeta.split("T")[1].substring(3, routeeta.split("T")[1].length)
-
-				getWeatherDataAsync('routemarker', routeeta, eta2, latlon, latlon2, null, i);
+				var routeeta = (route.scheduleElement[i].eta).substring(0, route.scheduleElement[i].eta.length-7)+"00Z"; //gives: YYYY-MM-DDTHH:MM:00Z - seconds do not matter
+				getWeatherDataAsync('routemarker', routeeta, null, latlon, null, null, i);
 			}
 		}
-
-
 
 
 		//**************************************************************
 		//**************************************************************
 		map.on('click', function (evt) {
+
+
+			//put back removed weathermarkers
+			for (var i = 0; i != route.waypoints.length ; i++) {
+				if (!mapSource.getFeatureById("routeweathermarker_" + i + "_windmarker")) {
+					updateRouteWORMFunction(i);
+				}
+			}
+
 			var lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
 			var lon = lonlat[0];
 			var lat = lonlat[1];
@@ -324,32 +134,39 @@
 			route.mapfeatures.clickmarker.lat = lat;
 			var time = new Date();
 			time.setTime(time.getTime());
-			mapSource.addFeatures(retLoadingIcon(lonlat)); //display loading icon
-			getWeatherDataAsync('clickmarker', time, null, latlon); //get clicked location weather right now.
-
-			//removes the existing clickmarker
-			try{
-				mapSource.removeFeature(mapSource.getFeatureById("clickmarker_wavemarker"));
-				mapSource.removeFeature(mapSource.getFeatureById("clickmarker_currentmarker"));
-				mapSource.removeFeature(mapSource.getFeatureById("clickmarker_windmarker"));
-			}catch(ExceptionNoFeature){}
-			//END CLICKMARKER
+			time = rendertimeformat(time); //change to expected time format
 
 
-			//detect if user clicks on existing route weather marker and remove it
-			//var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
-			//	return feature;
-			//});
+			if (control_clickmarkerenabled) {
+				mapSource.addFeatures(retLoadingIcon(lonlat)); //display loading icon
+				getWeatherDataAsync('clickmarker', time, null, latlon); //get clicked location weather right now.
 
-			//try {
-			//	mapSource.removeFeature(mapSource.getFeatureById("clickmarker_wavemarker"));
-			//	mapSource.removeFeature(mapSource.getFeatureById("clickmarker_currentmarker"));
-			//	mapSource.removeFeature(mapSource.getFeatureById("clickmarker_windmarker"));
-			//} catch (ExceptionNoFeature) { }
+				//removes the existing clickmarker
+				try {
+					mapSource.removeFeature(mapSource.getFeatureById("clickmarker_wavemarker"));
+					mapSource.removeFeature(mapSource.getFeatureById("clickmarker_currentmarker"));
+					mapSource.removeFeature(mapSource.getFeatureById("clickmarker_windmarker"));
+				} catch (ExceptionNoFeature) { }
+				//END CLICKMARKER
 
-			//if (feature) console.log("Clicked:", feature.getId());
 
-			console.log("Mouse lon:" + lon + " - " + "lat:" + lat);
+				//detect if user clicks on existing route weather marker and remove it
+				var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
+					return feature;
+				});
+
+				//clicktest and remove
+				try {
+					mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + feature.getId().split("_")[1] + "_wavemarker"));
+					mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + feature.getId().split("_")[1] + "_currentmarker"));
+					mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + feature.getId().split("_")[1] + "_windmarker"));
+				} catch (ExceptionNoFeature) { }
+
+			} //enabled clickmarker
+
+			cleanWeatherMarkersOverlapping();
+
+			console.log("Mouse lon:" + lon + " - " + "lat:" + lat, (feature) ? ("\nClicked on:"+feature.getId()):"");
 		});
 
 
@@ -369,8 +186,6 @@
 				calculateAndSaveDistanceBetweenRouteMarkers(); //calc and save distances between waypoints into route.scheduleelements
 				updateRouteWeatherDataFromService(); //gets weather data for each waypoint
 			});
-
-
 		});
 
 

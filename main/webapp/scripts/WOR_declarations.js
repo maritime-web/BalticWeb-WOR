@@ -17,6 +17,11 @@ var ghostvesselMarker, vesselactualMarker; //both ship icons
 var mapZoomLevel = 9;
 
 
+//User controls to enable disable options:
+var control_displaymarkertext = true; //displays marker text (eta day & time)
+var control_scale = 0.8; //route marker scaling control.
+var control_clickmarkerenabled = true;
+var control_windmapAreaResolution = 10; //XX by XX, doesnt care about viewport proportions
 
 
 var route = {
@@ -28,13 +33,13 @@ var route = {
 	{ id: 4, name: "pos5", legspeedmin: 10, legspeedmax: 11, lon: 11.930997774565851, lat: 54.569907839824936 },
 	{ id: 5, name: "pos6", legspeedmin: 10, legspeedmax: 11, lon: 11.883514521671373, lat: 54.567784008455305}
 	],
-	sheduleElement: [ //waypoint weatherdata is saved in scheduleelement
-	{ waypointId: 0, eta: "2017-04-11T00:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
-	{ waypointId: 1, eta: "2017-04-11T02:54:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
-	{ waypointId: 2, eta: "2017-04-11T04:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
-	{ waypointId: 3, eta: "2017-04-11T06:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
-	{ waypointId: 4, eta: "2017-04-11T08:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
-	{ waypointId: 4, eta: "2017-04-11T10:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
+	scheduleElement: [ //waypoint weatherdata is saved in scheduleelement
+	{ waypointId: 0, eta: "2017-04-23T11:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
+	{ waypointId: 1, eta: "2017-04-23T15:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
+	{ waypointId: 2, eta: "2017-04-23T20:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
+	{ waypointId: 3, eta: "2017-04-24T01:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
+	{ waypointId: 4, eta: "2017-04-24T08:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
+	{ waypointId: 4, eta: "2017-04-24T16:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
 	],
 	weatherdata: { //returned data from weather service
 		ghostvessel: { //time projected weather on pos of ghostvessel
@@ -61,8 +66,13 @@ var route = {
 			currentdirection: 0,
 			currentspeed: 0,
 		},
+		windmapActual: { //current wind on area of map
+			coordinatesArray: [],
+			winddirectionArray: [],
+			windspeedArray: [],
+		},
 	},
-	mapfeatures: { //scale features down to 0 instead of removing them. Is used to hide features.
+	mapfeatures: { //styling and default values overwritten at create - faster than asking the map each time
 		ghostvessel: {
 			currentmarkerscale: 0.64,
 			wavemarkerscale: 0.64,
@@ -101,8 +111,19 @@ WOR.ShipIconPosition = 0; //position in percentage of the routebar - saved every
 
 
 //FOR TESTING PURPOSES - sets the time of the route 24 hours from client time
-for (var i = 0; i != route.waypoints.length; i++) {
-	var now = new Date();
-	now.setTime(now.getTime() + (1000 * 60 * 60 * 24)); //add 24 hours to now
-	route.sheduleElement[i].eta = now.toISOString().split("T")[0] + "T"+(route.sheduleElement[i].eta).split("T")[1];
+function setTestParam() {
+	for (var i = 0; i != route.waypoints.length; i++) {
+
+		//set new ETA
+		//var now = new Date();
+		//now.setTime(now.getTime() + (1000 * 60 * 60 * 12)); //add 24 hours to now
+		//route.scheduleElement[i].eta = now.toISOString().split("T")[0] + "T"+(route.scheduleElement[i].eta).split("T")[1];
+
+		//set wave data for test
+		//route.scheduleElement[i].waveheight = 1.6;
+		//route.scheduleElement[i].wavedirection = 330;
+
+
+	}
 }
+setTestParam();

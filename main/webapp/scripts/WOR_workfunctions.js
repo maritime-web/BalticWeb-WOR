@@ -1,49 +1,5 @@
 ﻿
 
-window.onload = function () { // GEOLOCATION & COMPASS
-
-	//COMPASS - vesselactual rotation is handled by a timer
-	if (window.DeviceOrientationEvent) {
-		// Listen for the deviceorientation event and handle the raw data
-		window.addEventListener('deviceorientation', function (eventData) {
-			var compassdir;
-			if (event.webkitCompassHeading) {
-				compassdir = event.webkitCompassHeading;// Apple products
-			}
-			else compassdir = event.alpha;
-			CompassHeadingActual = compassdir;
-		});
-	}
-};
-
-//GPS COORDINATE - handled by same timer as compass, just every 5 sec.
-refreshGPSCoordinates = function () {
-	var startPos;
-	var geoOptions = {
-		maximumAge: 5 * 60 * 1000, //timeout for request return
-	}
-	var geoSuccess = function (position) {
-		//startPos = position;
-		//var time = new Date();
-		//time.setTime(time.getTime());
-		GPSLocationActual = [position.coords.longitude, position.coords.latitude]
-		console.log("GPSLocationActual:", GPSLocationActual);
-
-	};
-	var geoError = function (error) {
-		console.log('Error occurred. Error code: ' + error.code);
-		//   0: unknown error
-		//   1: permission denied
-		//   2: position unavailable (error response from location provider)
-		//   3: timed out
-	};
-	navigator.geolocation.getCurrentPosition(geoSuccess, geoError, geoOptions);
-}
-
-
-
-
-
 // convert degrees to radians
 function degToRad(deg) {
 	return deg * Math.PI * 2 / 360;
@@ -68,7 +24,6 @@ function calcSinCosFromAngle(xy, angle, radius) { //requires ('x' or 'y'), angle
 	return SinCos;
 }
 
-
 function getAngleFromPoints(cx, cy, ex, ey) { //returns the angle of a line fom 2 points xy - xy -> careful if using negative numbers. This is for the Baltic, which is in positive.
 	var dy = ey - cy;
 	var dx = ex - cx;
@@ -77,7 +32,6 @@ function getAngleFromPoints(cx, cy, ex, ey) { //returns the angle of a line fom 
 	//if (theta < 0) theta = 360 + theta; // range [0, 360)
 	return theta;
 }
-
 
 var getDistanceFromCoords = function (lonlat1, lonlat2) { //returns distance in nautical miles between 2 points. format: lonlatX=[xx.xx,xx.xx]
 	var wgs84Sphere = new ol.Sphere(6378137); //define spherical math layout
@@ -95,42 +49,6 @@ var getDistanceFromCoords = function (lonlat1, lonlat2) { //returns distance in 
 	return output;
 };
 
-//ENcode/Decode is used for comm with DMI for weather data - expects doublequotes
-function URLencode(data) {
-	data = data.replace(/'/g, '"');
-	return encodeURIComponent(data)//.replace(/'/g, "%27").replace(/"/g, "%22");
-}
-function URLdecode(data) {
-	return decodeURIComponent(data.replace(/\+/g, " "));
-}
-
-
-
-
-
-function refreshVesselActualPosition() {
-	try {//rotate vesselactual according to compass
-		//iconFeature.getGeometry().translate(deltaX, deltaY);
-		//item.getGeometry().setCoordinates(modifiedCoordinate);
-
-		//mapSource.getFeatureById("ROUTESHIPMARKER_vesselactual").getStyle().getImage().setRotation(degToRad(-(CompassHeadingActual + CompassHeadingOffset)));
-		//mapSource.getFeatureById("COMPASS_vesselactual").getStyle().getImage().setRotation(degToRad(-(CompassHeadingActual + CompassHeadingOffset)));
-		
-
-
-		//mapSource.getFeatureById("ROUTESHIPMARKER_vesselactual").getGeometry().setCoordinates([10,50])
-		//mapSource.getFeatureById("ROUTESHIPMARKER_vesselactual").getGeometry().setCoordinates(GPSLocationActual)
-		//mapSource.getFeatureById("COMPASS_vesselactual").getGeometry().setCoordinates(GPSLocationActual)
-
-		//mapSource.changed(); //update map
-	} catch (ExceptionRotateVesselActualError) { console.log("move vesselactual failed");/*probably not yet added to map if GPS is disabled*/ }
-	mapSource.getFeatureById("ROUTESHIPMARKER_vesselactual").setPosition(GPSLocationActual)
-}
-
-
-
-
-
 
 function calculateAndSaveDistanceBetweenRouteMarkers() { //saves distance between markers to handle zooming behaviour of route weathermarkers
 	var distdebug = "";
@@ -140,34 +58,52 @@ function calculateAndSaveDistanceBetweenRouteMarkers() { //saves distance betwee
 		var thiswaypoint = [route.waypoints[i].lon, route.waypoints[i].lat],
 			nextwaypoint = [route.waypoints[i+1].lon, route.waypoints[i+1].lat];
 
-		route.sheduleElement[i].nextwaypointdistance = getDistanceFromCoords(thiswaypoint, nextwaypoint);
-		//distdebug += route.sheduleElement[i].nextwaypointdistance + ", ";
+		route.scheduleElement[i].nextwaypointdistance = getDistanceFromCoords(thiswaypoint, nextwaypoint);
 	}
-	//console.log("distdebug:", distdebug);
 }
+
+
+function updateRouteWORMFunction(routemarkernumber) { //create route weather marker when data is available.
+
+	var winddirection = route.scheduleElement[routemarkernumber].winddirection;
+	var windspeed = route.scheduleElement[routemarkernumber].windspeed;
+	var currentdirection = route.scheduleElement[routemarkernumber].currentdirection;
+	var currentspeed = route.scheduleElement[routemarkernumber].currentspeed;
+	var wavedirection = route.scheduleElement[routemarkernumber].wavedirection;
+	var waveheight = route.scheduleElement[routemarkernumber].waveheight;
+
+	var timehours = (route.scheduleElement[routemarkernumber].eta.split("T")[1]).split(".")[0]; //get hours & minutes from 2017-04-19T11:00:01.000Z
+	timehours = timehours.substring(0,timehours.length-3);
+
+	var markertext = retDayFromRTZ(route.scheduleElement[routemarkernumber].eta) + "\n" + timehours + " UTC";
+	if (!control_displaymarkertext) markertext = "";
+	//adds a new clickmarker with updated info
+	mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_' + routemarkernumber, route.waypoints[routemarkernumber].lon, route.waypoints[routemarkernumber].lat, control_scale, winddirection, windspeed, currentdirection, currentspeed, wavedirection, waveheight, markertext));
+	
+}
+
 
 
 //test route weathermarkers for overlapping on zoom, remove the lowest overlapping one in order from start to end
 function cleanWeatherMarkersOverlapping() {
 	function hideshowmarkerswithindistance(showhidedistance) {
 		var totalDistance = 0;
-		for (var i = 0; i != route.sheduleElement.length - 1; i++) {//loop through all waypoints, remove any that are closer than (distance)
-			for (var y = i; y != route.sheduleElement.length - 1; y++) {
-				totalDistance = parseFloat(route.sheduleElement[i].nextwaypointdistance) + parseFloat(route.sheduleElement[i + 1].nextwaypointdistance); //add up distances
+		for (var i = 0; i != route.scheduleElement.length - 1; i++) {//loop through all waypoints, remove any that are closer than (distance)
+			for (var y = i; y != route.scheduleElement.length - 1; y++) {
+				totalDistance = parseFloat(route.scheduleElement[i].nextwaypointdistance) + parseFloat(route.scheduleElement[i + 1].nextwaypointdistance); //add up distances
 				if (showhidedistance > totalDistance) {
 					try { //remove the marker
 						mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (i) + "_wavemarker"));
 						mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (i) + "_currentmarker"));
 						mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (i) + "_windmarker"));
 					} catch (ExceptionNoFeature) { }
-					route.sheduleElement[i].zoomdisplay = mapZoomLevel; //save at which zoomlevel to show this marker again
+					route.scheduleElement[i].zoomdisplay = mapZoomLevel; //save at which zoomlevel to show this marker again
 				}
 			}
 			//add markers that are within acceptable distance again on zoom change
-			if (route.sheduleElement[i].zoomdisplay > 0 && mapZoomLevel > (route.sheduleElement[i].zoomdisplay)) {
+			if (route.scheduleElement[i].zoomdisplay > 0 && mapZoomLevel > (route.scheduleElement[i].zoomdisplay)) {
 				updateRouteWORMFunction(i);
-				//mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_' + i, route.waypoints[i].lon, route.waypoints[i].lat, 0.7, 0, 0, 0, 0, 0, 0))
-				route.sheduleElement[i].zoomdisplay = 0; //rest marker zoom behaviour
+				route.scheduleElement[i].zoomdisplay = 0; //reset marker zoom behaviour
 			}
 		}
 	}
@@ -205,15 +141,19 @@ function cleanWeatherMarkersOverlapping() {
 
 
 function rendertimeformat(tm) {
-	if (tm && tm != "") return tm.toISOString().substring(0, tm.toISOString().length - 4) + "000+0000";
+	if (tm && tm != "") return tm.toISOString().substring(0, tm.toISOString().length - 4) + "00Z";
 }
 
 function retDayFromRTZ(tm) { //returns which day it is from a timestamp
 	var days,
 		tm = tm.split("T")[0],
 		tmnew = new Date(tm);
-	days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+	days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 	return days[tmnew.getUTCDay()];
 }
+
+
+
+
 
 

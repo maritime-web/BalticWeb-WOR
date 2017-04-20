@@ -148,10 +148,14 @@ var createRouteLegs = function () {
 
 
 //Weather On Route Marker (WORM) generator
-var retWORMWaveStyle = function (scale, wavedir, waveheight) {
+var retWORMWaveStyle = function (scale, wavedir, waveheight, markertext) {
 	if (!scale) scale = 1;
 	if (!wavedir) wavedir = 180;
 	wavedir += 45; //offset for icon
+	var useimage = (waveheight == "") ? 'images/WOR_backdropcircle_nowave.png' : 'images/WOR_backdropcircle.png';
+	if (markertext == "nodata") useimage = "images/WOR_nodata.png";
+
+
 	if (!waveheight || waveheight==0) waveheight = "";
 	var radOff = 0.47; //text offset in radians for current and wave indicator
 	var WORMWaveStyle = new ol.style.Style({
@@ -162,7 +166,7 @@ var retWORMWaveStyle = function (scale, wavedir, waveheight) {
 			anchor: [(0.5), (0.5)],
 			anchorXUnits: 'fraction',
 			anchorYUnits: 'fraction',
-			src: (waveheight == "") ? 'images/WOR_backdropcircle_nowave.png' : 'images/WOR_backdropcircle.png',
+			src: useimage,
 			scale: (0.5 * scale)
 		}),
 		text: new ol.style.Text({
@@ -183,10 +187,14 @@ var retWORMWaveStyle = function (scale, wavedir, waveheight) {
 	return WORMWaveStyle;
 }
 
-var retWORMCurrentStyle = function (scale, currdir, currstr) {
+var retWORMCurrentStyle = function (scale, currdir, currstr, markertext) {
 	if (!scale) scale = 1;
 	if (!currdir) currdir = 180;
 	currdir += 45; //offset for icon
+	(!currstr) ? currstr = "" : currstr * 1.9438444924574; // make "" if nothing, or meter/sec to knots.
+	var useimage = 'images/WOR_innercircle.png';
+	if (markertext == "nodata") useimage = "images/emptyimage.png";
+
 	if (!currstr || currstr == 0) currstr = "";
 	var radOff = 0.25; //text offset in radians for current and wave indicator
 	var WORMCurrentStyle = new ol.style.Style({
@@ -197,7 +205,7 @@ var retWORMCurrentStyle = function (scale, currdir, currstr) {
 			anchor: [0.5, 0.5],
 			anchorXUnits: 'fraction',
 			anchorYUnits: 'fraction',
-			src: 'images/WOR_innercircle.png', //needs path
+			src: useimage, //needs path
 			scale: (0.5 * scale)
 		}),
 		text: new ol.style.Text({
@@ -219,8 +227,9 @@ var retWORMCurrentStyle = function (scale, currdir, currstr) {
 }
 
 
-var retWORMWindStyle = function (scale, winddir, windstr, markertext) { //windstr is m/s
+var retWORMWindStyle = function (scale, winddir, windstr, markertext, wavedir) { //windstr is m/s - wavedir is needed to make offset greater if pointing south so text doesnt overlap. 
 	if (!scale) scale = 1;
+	var waypointtextoffset = 46;
 	if (!winddir) winddir = 180; //default north
 	(!windstr) ? windstr = 1 : windstr * 1.9438444924574; // make 1 knot if nothing, or meter/sec to knots.
 	var markerImageNamePath = "images/wind/";
@@ -271,6 +280,17 @@ var retWORMWindStyle = function (scale, winddir, windstr, markertext) { //windst
 		markerImageNamePath += 'mark100.png';
 	}
 
+	//move the text a bit lower if the wavearrow points down
+	if ((wavedir < 55 && wavedir > 0) || (wavedir > 305)) { 
+		waypointtextoffset = 56;
+	}
+
+	var useimage = markerImageNamePath;
+	if (markertext == "nodata") {
+		useimage = "images/emptyimage.png";
+		markertext = "";
+	}
+
 
 	var WORMWindStyle = new ol.style.Style({
 		zIndex: 52,
@@ -280,18 +300,22 @@ var retWORMWindStyle = function (scale, winddir, windstr, markertext) { //windst
 			anchor: [(0.52), (0.25)],
 			anchorXUnits: 'fraction',
 			anchorYUnits: 'fraction',
-			src: markerImageNamePath, //needs path and windstr to paint correct arrow
+			src: useimage, //needs path and windstr to paint correct arrow
 			scale: (0.80 * scale)
 		})),
 		text: new ol.style.Text({
-			font: '11px helvetica,sans-serif',
+			font: 'bold 12px helvetica,sans-serif',
 			text: "" + markertext,
 			offsetX: 0,
-			offsetY: 36 * scale,
+			offsetY: waypointtextoffset * scale,
 			scale: (1 * scale),
 			fill: new ol.style.Fill({
 				color: '#000'
 			}),
+			stroke: new ol.style.Stroke({
+				color: '#fff',
+				width: 1
+			})
 		})
 	});
 	return WORMWindStyle;
@@ -303,6 +327,12 @@ var retWORMWindStyle = function (scale, winddir, windstr, markertext) { //windst
 var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr, currdir, currstr, wavedir, waveheight, markertext) { //type is given so it can be styled.
 	if (!lon || !lat) { lon = 0; lat = 0; }
 
+	//display errormarker if no data
+	if (winddir == 0 && windstr == 0 && currdir == 0 && currstr == 0 && wavedir == 0 && waveheight == 0 && markertext == 0) {
+		markertext = "nodata"; //styling takes care of it from here
+	}
+
+
 	//WAVEARROW
 	var iconFeature = new ol.Feature({ 
 		geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
@@ -311,7 +341,7 @@ var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr
 		identifier: identifier,
 		src: 'images/WOR_vessel_backdropcircle.png',
 	});
-	iconFeature.setStyle(retWORMWaveStyle(scale, wavedir, waveheight)); //generated style
+	iconFeature.setStyle(retWORMWaveStyle(scale, wavedir, waveheight, markertext)); //change stylíng
 	iconFeature.setId(type + '_wavemarker');
 
 	//CURRENTARROW
@@ -322,7 +352,7 @@ var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr
 		identifier: identifier,
 		src: 'images/WOR_innercircle.png',
 	});
-	iconFeature2.setStyle(retWORMCurrentStyle(scale, currdir, currstr));
+	iconFeature2.setStyle(retWORMCurrentStyle(scale, currdir, currstr, markertext));
 	iconFeature2.setId(type + '_currentmarker');
 
 	//WINDARROW
@@ -333,7 +363,7 @@ var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr
 		identifier: identifier,
 		src: 'images/wind/mark005.png',
 	});
-	iconFeature3.setStyle(retWORMWindStyle(scale, winddir, windstr, markertext));
+	iconFeature3.setStyle(retWORMWindStyle(scale, winddir, windstr, markertext, wavedir));
 	iconFeature3.setId(type + '_windmarker');
 
 	return [iconFeature, iconFeature2, iconFeature3];
@@ -397,4 +427,17 @@ var generateRouteLayer = function () {
 	});
 	return routeLayer;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
